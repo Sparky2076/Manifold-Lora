@@ -80,9 +80,21 @@ class MLoRALinear(nn.Module):
         self.dropout = nn.Dropout(p=dropout) if dropout and dropout > 0 else nn.Identity()
 
         if self.r > 0:
+            # DeepSeek 等模型通常以 bfloat16 形式加载权重；
+            # 若基座权重为 bf16，则将 LoRA 参数也初始化为 bf16，否则使用 float32。
+            base_dtype = getattr(self.base.weight, "dtype", torch.float32)
+            if base_dtype == torch.bfloat16:
+                lora_dtype = torch.bfloat16
+            else:
+                lora_dtype = torch.float32
+
             # A: (r, in_features), B: (out_features, r)
-            self.lora_A = nn.Parameter(torch.zeros(self.r, self.in_features, device=self.device))
-            self.lora_B = nn.Parameter(torch.zeros(self.out_features, self.r, device=self.device))
+            self.lora_A = nn.Parameter(
+                torch.zeros(self.r, self.in_features, device=self.device, dtype=lora_dtype)
+            )
+            self.lora_B = nn.Parameter(
+                torch.zeros(self.out_features, self.r, device=self.device, dtype=lora_dtype)
+            )
             # Initialization: A ~ Kaiming uniform, B = 0 (common practice)
             nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B)
@@ -120,6 +132,12 @@ class MLoRALinear(nn.Module):
             return self.base(x)
 
         gate = self._adapter_gate()
+        if gate is None:
+            return self.base(x)
+
+        # Ensure gate matches base weight dtype (important under mixed precision)
+        gate = gate.to(self.base.weight.dtype)
+
         # Effective weight: W_eff = W_* ⊙ W_H
         # base.weight shape: (out, in)
         w_eff = self.base.weight * gate

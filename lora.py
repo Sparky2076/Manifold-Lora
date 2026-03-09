@@ -51,9 +51,21 @@ class LoRALinear(nn.Module):
         self.device = device
         # LoRA parameters
         if self.r > 0:
+            # DeepSeek 等模型通常以 bfloat16 形式加载权重；
+            # 若基座权重为 bf16，则将 LoRA 参数也初始化为 bf16，否则使用 float32。
+            base_dtype = getattr(self.base.weight, "dtype", torch.float32)
+            if base_dtype == torch.bfloat16:
+                lora_dtype = torch.bfloat16
+            else:
+                lora_dtype = torch.float32
+
             # A: (r, in_features), B: (out_features, r)
-            self.lora_A = nn.Parameter(torch.zeros(self.r, self.in_features, device=self.device))
-            self.lora_B = nn.Parameter(torch.zeros(self.out_features, self.r, device=self.device))
+            self.lora_A = nn.Parameter(
+                torch.zeros(self.r, self.in_features, device=self.device, dtype=lora_dtype)
+            )
+            self.lora_B = nn.Parameter(
+                torch.zeros(self.out_features, self.r, device=self.device, dtype=lora_dtype)
+            )
             # Initialization: A ~ Kaiming uniform, B = 0 (common practice)
             nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B)
@@ -72,11 +84,15 @@ class LoRALinear(nn.Module):
         # LoRA path
         if self.r > 0:
             x_d = self.dropout(x)
+            # Cast LoRA params to input dtype (fixes Half/Float mismatch under autocast).
+            dtype = x_d.dtype
+            lora_A = self.lora_A.to(dtype)
+            lora_B = self.lora_B.to(dtype)
             # (batch, *, in) @ (in, r) -> (batch, *, r) then @ (r, out) -> (batch, *, out)
             # Using F.linear for efficiency: F.linear(input, weight, bias)
             # F.linear: input @ weight^T
-            z = F.linear(x_d, self.lora_A)              # weight: (r, in) => out dim r
-            lora_out = F.linear(z, self.lora_B)         # weight: (out, r) => out dim out
+            z = F.linear(x_d, lora_A)              # weight: (r, in) => out dim r
+            lora_out = F.linear(z, lora_B)         # weight: (out, r) => out dim out
             out = out + self.scaling * lora_out
 
         return out
