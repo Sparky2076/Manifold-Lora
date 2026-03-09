@@ -10,6 +10,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# 加入stifel论文的正交约束、加入非负约束、组合乘法和加法逐一验证
+# 运行原始lora做对比
 
 @dataclass
 class LoRAConfig:
@@ -73,21 +75,15 @@ class MLoRALinear(nn.Module):
         self.r = int(r)
         self.alpha = float(alpha)
         self.scaling = self.alpha / self.r if self.r > 0 else 1.0
-
+        self.device = device
         # Dropout on adapter entries (Δ). Identity if dropout=0.
         self.dropout = nn.Dropout(p=dropout) if dropout and dropout > 0 else nn.Identity()
 
-        # Prefer allocating LoRA params on the base module's device (important when using device_map).
-        base_device = getattr(getattr(base, "weight", None), "device", None)
-        if base_device is None or str(base_device) == "meta":
-            base_device = device
-
         if self.r > 0:
             # A: (r, in_features), B: (out_features, r)
-            self.lora_A = nn.Parameter(torch.zeros(self.r, self.in_features, device=base_device))
-            self.lora_B = nn.Parameter(torch.zeros(self.out_features, self.r, device=base_device))
-
-            # Initialization: A ~ Kaiming uniform, B = 0 (so Δ=0 and W_H=1 at init).
+            self.lora_A = nn.Parameter(torch.zeros(self.r, self.in_features, device=self.device))
+            self.lora_B = nn.Parameter(torch.zeros(self.out_features, self.r, device=self.device))
+            # Initialization: A ~ Kaiming uniform, B = 0 (common practice)
             nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B)
         else:
