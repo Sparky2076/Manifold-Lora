@@ -8,6 +8,28 @@
 
 ---
 
+### 0. 上传代码与提交任务（常用流程）
+
+改完代码后按下面两步做，避免忘记。
+
+**① 本机上传到服务器**（在本地 **Git Bash** 执行，会提示输入服务器密码）：
+
+```bash
+cd /d/GitHub_Code/Manifold-Lora
+bash scripts/upload.sh
+```
+
+**② 服务器上提交训练任务**（先 SSH 登录，再执行）：
+
+```bash
+cd ~/Manifold-Lora && bash scripts/submit_bsub.sh
+```
+
+- 上传脚本会把 `main.py`、`models.py`、`lora.py`、`mlora.py` 等和 `scripts/*.sh` 传到服务器 `~/Manifold-Lora/`。
+- 提交脚本会向 LSF 提交单卡任务，默认用 DeepSeek-1.5B + GLUE SST2；查看任务状态用 `bjobs`，看输出用 `cat JOBID.out` / `cat JOBID.err`。
+
+---
+
 ### 1. 实时查看 train/test 指标：`scripts/watch_metrics.sh`
 
 脚本路径：`scripts/watch_metrics.sh`
