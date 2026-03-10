@@ -19,6 +19,7 @@ class ModelLoadConfig:
     trust_remote_code: bool = False
     torch_dtype: Optional[str] = None  # "float16", "bfloat16", or None
     device_map: Optional[str] = None   # "auto" or None
+    use_fast_tokenizer: bool = True   # False for some legacy/remote-code tokenizers
 
 
 def _parse_dtype(torch_dtype: Optional[str]):
@@ -34,15 +35,16 @@ def _parse_dtype(torch_dtype: Optional[str]):
     raise ValueError(f"Unknown torch_dtype: {torch_dtype}")
 
 
-def load_model_and_tokenizer(cfg: ModelLoadConfig):
+def load_model_and_tokenizer(cfg: ModelLoadConfig) -> Tuple[torch.nn.Module, "AutoTokenizer"]:
     """
-    Load HF model + tokenizer.
+    Load HuggingFace model + tokenizer for sequence classification.
     Supports:
-      - distilbert-base-uncased (and other BERT-like)
-      - deepseek 1.5b variants (pass correct repo id via --model_name)
+      - BERT-like: distilbert, bert, roberta, etc.
+      - Decoder-only LLMs (with trust_remote_code): Qwen, LLaMA, DeepSeek, ChatGLM, etc.
+      - model_name can be HF repo id or local path (e.g. .../snapshots/xxx).
 
-    For large models, you may want:
-      --device_map auto --torch_dtype bfloat16 --trust_remote_code
+    For large decoder-only models use:
+      --device_map auto --torch_dtype float16 --trust_remote_code
     """
     dtype = _parse_dtype(cfg.torch_dtype)
 
@@ -50,21 +52,28 @@ def load_model_and_tokenizer(cfg: ModelLoadConfig):
         cfg.model_name,
         trust_remote_code=cfg.trust_remote_code,
     )
-    hf_config.num_labels = cfg.num_labels
+    if hasattr(hf_config, "num_labels"):
+        hf_config.num_labels = cfg.num_labels
+    else:
+        setattr(hf_config, "num_labels", cfg.num_labels)
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        cfg.model_name,
-        use_fast=True,
-        trust_remote_code=cfg.trust_remote_code,
-    )
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            cfg.model_name,
+            use_fast=cfg.use_fast_tokenizer,
+            trust_remote_code=cfg.trust_remote_code,
+        )
+    except (TypeError, ValueError):
+        tokenizer = AutoTokenizer.from_pretrained(
+            cfg.model_name,
+            use_fast=False,
+            trust_remote_code=cfg.trust_remote_code,
+        )
 
-    # Some tokenizers may not have pad token (common for decoder-only).
     if tokenizer.pad_token is None:
-        # A safe default: use eos_token as pad_token
         if tokenizer.eos_token is not None:
             tokenizer.pad_token = tokenizer.eos_token
         else:
-            # As last resort
             tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 
     model = AutoModelForSequenceClassification.from_pretrained(

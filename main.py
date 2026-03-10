@@ -42,7 +42,10 @@ def evaluate(
 
     pbar = tqdm(dataloader, desc=desc, dynamic_ncols=True, leave=True)
     for batch in pbar:
-        if not use_device_map:
+        if use_device_map:
+            model_device = next(model.parameters()).device
+            batch = {k: v.to(model_device) for k, v in batch.items()}
+        else:
             batch = {k: v.to(device) for k, v in batch.items()}
         labels = batch["labels"]
 
@@ -80,6 +83,9 @@ def train_one_epoch(
     device: torch.device,
     use_device_map: bool,
     trainable_params,
+    train_csv_path: str = "",
+    log_every: int = 50,
+    global_step: list | None = None,
 ) -> float:
     """Train for one epoch with its own progress bar. Returns average loss."""
     model.train()
@@ -92,7 +98,10 @@ def train_one_epoch(
 
     pbar = tqdm(train_loader, desc=f"[Train][Epoch {epoch}/{args.epochs}]", dynamic_ncols=True, leave=True)
     for step, batch in enumerate(pbar, start=1):
-        if not use_device_map:
+        if use_device_map:
+            model_device = next(model.parameters()).device
+            batch = {k: v.to(model_device) for k, v in batch.items()}
+        else:
             batch = {k: v.to(device) for k, v in batch.items()}
 
         with torch.cuda.amp.autocast(
@@ -137,6 +146,14 @@ def train_one_epoch(
             scheduler.step()
             optimizer.zero_grad(set_to_none=True)
 
+            if global_step is not None and train_csv_path:
+                global_step[0] += 1
+                avg_loss = running_loss / max(seen, 1)
+                acc = correct / max(total, 1)
+                if global_step[0] % log_every == 0:
+                    with open(train_csv_path, "a") as f:
+                        f.write(f"{global_step[0]},{avg_loss:.4f},{acc:.4f}\n")
+
         avg_loss = running_loss / max(seen, 1)
         acc = correct / max(total, 1)
         pbar.set_postfix({"loss": f"{avg_loss:.4f}", "acc": f"{acc:.4f}", "lr": f"{scheduler.get_last_lr()[0]:.2e}"})
@@ -156,14 +173,23 @@ def train(
     device: torch.device,
     use_device_map: bool,
     trainable_params,
+    metrics_dir: str = ".",
 ) -> Tuple[float, int]:
     """Full training loop. Evaluates once at the end of each epoch.
-
-    Returns:
-        (best_acc, best_epoch) where best_acc is in [0,1].
+    Each run overwrites train.csv and test.csv so they only contain this run's data.
     """
+    os.makedirs(metrics_dir, exist_ok=True)
+    train_csv_path = os.path.join(metrics_dir, "train.csv")
+    test_csv_path = os.path.join(metrics_dir, "test.csv")
+    # 每次运行前清空已有内容，确保 bsub 微调完成后 train/test.csv 仅为本次运行数据
+    with open(train_csv_path, "w") as f:
+        f.write("iteration,train_loss,train_accuracy\n")
+    with open(test_csv_path, "w") as f:
+        f.write("iteration,test_loss,test_accuracy\n")
+
     best_acc = -1.0
     best_epoch = -1
+    global_step = [0]
 
     for epoch in range(1, args.epochs + 1):
         # ---- Train (progress bar #1) ----
@@ -178,6 +204,9 @@ def train(
             device=device,
             use_device_map=use_device_map,
             trainable_params=trainable_params,
+            train_csv_path=train_csv_path,
+            log_every=args.log_every,
+            global_step=global_step,
         )
 
         # ---- Test once per epoch (progress bar #2) ----
@@ -188,6 +217,9 @@ def train(
             use_device_map=use_device_map,
             desc=f"[Test][Epoch {epoch}/{args.epochs}]",
         )
+
+        with open(test_csv_path, "a") as f:
+            f.write(f"{global_step[0]},{eval_loss:.4f},{eval_acc:.4f}\n")
 
         if eval_acc > best_acc:
             best_acc = eval_acc
@@ -214,13 +246,13 @@ def main():
     parser.add_argument("--text_field", type=str, default="sentence")
     parser.add_argument("--num_labels", type=int, default=2)
 
-    # Training
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--batch_size", type=int, default=32)
+    # Training (defaults tuned for DeepSeek 1.5B stability: smaller lr, batch, longer accum)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--eval_batch_size", type=int, default=128)  # (not used separately here, kept for extension)
-    parser.add_argument("--max_length", type=int, default=256)
-    parser.add_argument("--grad_accum_steps", type=int, default=1)
-    parser.add_argument("--lr", type=float, default=2e-4)
+    parser.add_argument("--max_length", type=int, default=128)
+    parser.add_argument("--grad_accum_steps", type=int, default=8)
+    parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--weight_decay", type=float, default=0.01)
     parser.add_argument("--warmup_ratio", type=float, default=0.06)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
@@ -239,7 +271,9 @@ def main():
 
     # Logging
     parser.add_argument("--log_every", type=int, default=50)
+    parser.add_argument("--eval_every", type=int, default=50, help="Accepted for compatibility; evaluation is per-epoch.")
     parser.add_argument("--num_workers", type=int, default=0)
+    parser.add_argument("--metrics_dir", type=str, default=".")
 
     args = parser.parse_args()
 
@@ -325,8 +359,13 @@ def main():
         device=device,
         use_device_map=use_device_map,
         trainable_params=trainable,
+        metrics_dir=args.metrics_dir,
     )
     print(f"[Done] Best eval accuracy = {best_acc:.4f} @ epoch {best_epoch}")
+    train_csv = os.path.join(args.metrics_dir, "train.csv")
+    test_csv = os.path.join(args.metrics_dir, "test.csv")
+    if os.path.isfile(train_csv) and os.path.isfile(test_csv):
+        print(f"SUCCESS: 指标已保存至 {train_csv} 和 {test_csv}")
 
 
 if __name__ == "__main__":
