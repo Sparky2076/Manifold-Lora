@@ -8,9 +8,9 @@
 
 ---
 
-### 0. 上传代码与提交任务（常用流程）
+### 0. 上传代码、提交任务与下载结果（常用流程）
 
-改完代码后按下面两步做，避免忘记。
+改完代码后按下面几步做，避免忘记。
 
 **① 本机上传到服务器**（在本地 **Git Bash** 执行，会提示输入服务器密码）：
 
@@ -19,14 +19,26 @@ cd /d/GitHub_Code/Manifold-Lora
 bash scripts/upload.sh
 ```
 
-**② 服务器上提交训练任务**（先 SSH 登录，再执行）：
+**② 服务器上修正脚本换行并提交训练任务**（先 SSH 登录，再执行）：
 
 ```bash
-cd ~/Manifold-Lora && bash scripts/submit_bsub.sh
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh
+bash scripts/submit_bsub.sh
 ```
 
-- 上传脚本会把 `main.py`、`models.py`、`lora.py`、`mlora.py` 等和 `scripts/*.sh` 传到服务器 `~/Manifold-Lora/`。
-- 提交脚本会向 LSF 提交单卡任务，默认用 DeepSeek-1.5B + GLUE SST2；查看任务状态用 `bjobs`，看输出用 `cat JOBID.out` / `cat JOBID.err`。
+- 第一句 `sed` 是把从 Windows 上传过去的 `.sh` 脚本从 CRLF 换行改成 LF，避免 `$'\r': command not found` / `set: pipefail` 这类错误。
+- 第二句会向 LSF 提交单卡任务，默认用 DistilBERT + GLUE SST2；查看任务状态用 `bjobs`，看输出用 `cat JOBID.out` / `cat JOBID.err`。
+
+**③ 在本机保存训练结果 CSV**（在本地 PowerShell 执行，把服务器上的 `train.csv` / `test.csv` 拷回本地仓库目录）：
+
+```powershell
+cd D:\GitHub_Code\Manifold-Lora
+scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+```
+
+执行完后，会在本地 `D:\GitHub_Code\Manifold-Lora` 目录下看到最新一次微调生成的 `train.csv` 和 `test.csv`。
 
 ---
 
