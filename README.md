@@ -28,6 +28,8 @@ ssh wangxiao@202.121.138.196
 
 ```bash
 cd ~/Manifold-Lora
+```
+```bash
 bash scripts/watch_metrics.sh
 ```
 
