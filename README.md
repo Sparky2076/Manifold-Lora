@@ -1,9 +1,10 @@
 ## Manifold-Lora (个人实验 Fork)
 
-基于原始 Manifold-Lora 项目的个人实验仓库，用于在 DeepSeek-1.5B 等模型上做 LoRA / mLoRA 微调，并方便在学校 GPU 集群上提交和监控任务。
+基于原始 Manifold-Lora 项目的个人实验仓库，用于在 DistilBERT、DeepSeek-1.5B 等模型上做 LoRA / mLoRA 微调，并方便在学校 GPU 集群上提交和监控任务。
 
-本仓库当前主要增加了两块内容：
-- **LoRA / mLoRA 在 DeepSeek 上的 dtype 适配**（在 `lora.py` / `mlora.py` 中）
+本仓库当前主要增加了三块内容（已更新至 2026-03-10）：
+- **DistilBERT + LoRA 微调流水线**：`main.py` + `models.py` + `scripts/run_train_bsub.sh` / `scripts/submit_bsub.sh`
+- **LoRA / mLoRA 在 DeepSeek 等大模型上的 dtype 适配**（在 `lora.py` / `mlora.py` 中）
 - **训练过程中实时查看 `train.csv` / `test.csv` 的监控脚本 `scripts/watch_metrics.sh`**
 
 ---
@@ -72,7 +73,25 @@ bash scripts/watch_metrics.sh
 
 ---
 
-### 2. DeepSeek-1.5B 调参示例（bsub 提交）
+### 2. DistilBERT + LoRA 微调说明（当前默认配置）
+
+- 模型：`distilbert-base-uncased`
+- 数据集：GLUE `sst2`，字段 `sentence`
+- 训练超参（见 `scripts/run_train_bsub.sh` 和 `main.py`）：
+  - `epochs = 50`
+  - `batch_size = 4`
+  - `grad_accum_steps = 8`
+  - `lr = 1e-5`
+  - `max_length = 128`
+  - LoRA：`r=8, alpha=16, dropout=0.05`，只作用于 attention 里的 Linear
+- 指标写入：
+  - 每次运行开始时会**清空并重写** `train.csv` / `test.csv` 表头，保证只包含本次微调的数据
+  - `train.csv`：`iteration,train_loss,train_accuracy`
+  - `test.csv`：`iteration,test_loss,test_accuracy`
+
+---
+
+### 3. DeepSeek-1.5B 调参示例（bsub 提交）
 
 下面是一个更保守、更稳定的 bsub 提交命令示例，只调整了超参数，**没有改任何 Python 代码逻辑**。
 
