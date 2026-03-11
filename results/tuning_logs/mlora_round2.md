@@ -23,8 +23,8 @@
 
 | JobID  | lr    | Best eval acc | Best epoch | 备注 |
 |--------|-------|---------------|------------|------|
-| TODO   | 3e-5  | TODO          | TODO       |      |
-| TODO   | 5e-5  | TODO          | TODO       |      |
-| TODO   | 7e-5  | TODO          | TODO       |      |
-| TODO   | 1e-4  | TODO          | TODO       |      |
+| 308213 | 3e-5  | TODO          | TODO       |      |
+| 308214 | 5e-5  | TODO          | TODO       |      |
+| 308215 | 7e-5  | TODO          | TODO       |      |
+| 308216 | 1e-4  | TODO          | TODO       |      |
 
