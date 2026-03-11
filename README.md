@@ -131,3 +131,74 @@ cd ~/Manifold-Lora
 bash scripts/watch_metrics.sh
 ```
 
+---
+
+### 4. LoRA / mLoRA 学习率网格搜索（Grid Search）
+
+本仓库提供自动按多组学习率提交任务的脚本，用于在相同 epoch 下对比不同 `lr` 的效果。**本机上传到服务器仍由你在 Git Bash 中执行**（见第 0 节），此处只说明服务器上的提交、查看与保存结果。
+
+#### 4.1 相关脚本说明
+
+| 脚本 | 说明 |
+|------|------|
+| `scripts/gs_lr_lora.sh` | LoRA 学习率网格：`lr` 取 `5e-6, 1e-5, 2e-5, 5e-5`，每个跑 20 epoch，自动提交 4 个 job。 |
+| `scripts/gs_lr_mlora.sh` | mLoRA 学习率网格：同样的 `lr` 列表和 20 epoch，自动提交 4 个 job。 |
+| `scripts/submit_bsub.sh` | 已改为把 `EPOCHS` / `LR` / `LORA_TYPE` / `LORA_R` / `LORA_ALPHA` / `LORA_DROPOUT` 等环境变量传进 bsub 任务，网格搜索里设的参会在计算节点上生效。 |
+| `scripts/upload.sh`、`scripts/upload.ps1` | 已加入对 `gs_lr_lora.sh`、`gs_lr_mlora.sh` 的上传；`upload.ps1` 中 `requirements.txt` 为可选。 |
+
+#### 4.2 提交脚本（在服务器上执行）
+
+上传完成后，SSH 登录服务器，先修换行再跑网格搜索：
+
+```bash
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh
+```
+
+- 只跑 **LoRA** 的 lr 网格（4 个 job）：
+  ```bash
+  bash scripts/gs_lr_lora.sh
+  ```
+- 只跑 **mLoRA** 的 lr 网格（4 个 job）：
+  ```bash
+  bash scripts/gs_lr_mlora.sh
+  ```
+
+#### 4.3 查看任务与输出文件
+
+- 查看任务状态：
+  ```bash
+  bjobs
+  bjobs -d
+  ```
+- 查看某个 job 的日志（把 `JOBID` 换成实际 job 号）：
+  ```bash
+  cat JOBID.out
+  cat JOBID.err
+  ```
+- 查看当前目录下本次运行写入的指标（每次运行会覆盖）：
+  ```bash
+  tail -20 train.csv
+  tail -20 test.csv
+  ```
+
+#### 4.4 保存结果文件到本机
+
+在**本机** PowerShell 或 Git Bash 执行，将服务器上当前 `train.csv` / `test.csv` 拷到本地项目根目录：
+
+```powershell
+cd D:\GitHub_Code\Manifold-Lora
+scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+```
+
+或 Git Bash：
+
+```bash
+cd /d/GitHub_Code/Manifold-Lora
+scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+```
+
+拷完后可在本地用 Excel 或脚本分析；若需按实验归档，可再放入 `results/` 下对应子目录并提交到 GitHub。
+

@@ -24,6 +24,8 @@ scp "$PROJECT_DIR/main.py" \
 scp "$PROJECT_DIR/scripts/submit_bsub.sh" \
     "$PROJECT_DIR/scripts/run_train_bsub.sh" \
     "$PROJECT_DIR/scripts/watch_metrics.sh" \
+    "$PROJECT_DIR/scripts/gs_lr_lora.sh" \
+    "$PROJECT_DIR/scripts/gs_lr_mlora.sh" \
     "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 
 echo "上传完成"

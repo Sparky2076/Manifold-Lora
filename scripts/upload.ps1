@@ -15,14 +15,16 @@ scp "$ProjectDir/main.py", `
     "$ProjectDir/utils.py", `
     "$ProjectDir/optimizers.py", `
     "$ProjectDir/lora.py", `
-    "$ProjectDir/mlora.py", `
-    "$ProjectDir/requirements.txt" `
+    "$ProjectDir/mlora.py" `
     $Remote
+if (Test-Path "$ProjectDir/requirements.txt") { scp "$ProjectDir/requirements.txt" $Remote }
 
 $scripts = @(
     "$ProjectDir/scripts/submit_bsub.sh",
     "$ProjectDir/scripts/run_train_bsub.sh",
-    "$ProjectDir/scripts/watch_metrics.sh"
+    "$ProjectDir/scripts/watch_metrics.sh",
+    "$ProjectDir/scripts/gs_lr_lora.sh",
+    "$ProjectDir/scripts/gs_lr_mlora.sh"
 )
 foreach ($f in $scripts) {
     if (Test-Path $f) {
