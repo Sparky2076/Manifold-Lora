@@ -93,7 +93,9 @@ bash scripts/watch_metrics.sh
 
 ### 3. DeepSeek-1.5B 调参示例（bsub 提交）
 
-下面是一个更保守、更稳定的 bsub 提交命令示例，只调整了超参数，**没有改任何 Python 代码逻辑**。
+**说明**：当前 `main.py` 是**文本分类**流水线（GLUE SST-2），不适合 DeepSeek 这类生成式模型。若要用 DeepSeek 做**指令跟随 / 对话 / 问答**等任务，请参考 **[docs/DEEPSEEK_FINETUNE_PLAN.md](docs/DEEPSEEK_FINETUNE_PLAN.md)**，其中给出了常用任务与 Hugging Face 数据集（如 Alpaca、Dolly）、以及在本仓库加 SFT 分支或使用 LLaMA-Factory/TRL 的两种方案。
+
+下面是一个更保守、更稳定的 bsub 提交命令示例（仅当沿用「分类」设定时参考），只调整了超参数，**没有改任何 Python 代码逻辑**。
 
 在登录节点 `mgtgpu01` 上执行：
 
