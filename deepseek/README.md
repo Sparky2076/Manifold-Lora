@@ -1,22 +1,22 @@
 # DeepSeek 指令微调（SFT）— 独立目录说明
 
-本目录与根目录 **DistilBERT 分类** 完全分离：
+本目录与 **`distilbert/`（DistilBERT 分类）** 完全分离：
 
 - **代码**：`deepseek/main_sft.py`、`models_sft.py`、`utils_sft.py`（训练仍**复用**仓库根的 `lora.py` / `mlora.py` / `optimizers.py`）
 - **脚本**：`deepseek/scripts/*.sh`
-- **结果**：`deepseek/results/`（结构与根目录 `results/` 对应，见下表）
+- **结果**：`deepseek/results/`（结构与 `distilbert/results/` 对应，见下表）
 
 运行训练时**工作目录必须是仓库根** `Manifold-Lora/`，内部通过 `python -m deepseek.main_sft` 调用。
 
 ---
 
-## 与根目录 `results/` 结构对应
+## 与 `distilbert/results/` 结构对应
 
-| 本目录 | 根目录 DistilBERT |
-|--------|-------------------|
-| `deepseek/results/tuning_logs/` | `results/tuning_logs/` |
-| `deepseek/results/final_sft/` | `results/final_loRA/`、`results/final_mLoRA/` |
-| `deepseek/results/sft_grid/` | 网格实验按子目录保存（类似你在 `results/` 下按实验分子文件夹的做法） |
+| 本目录 | DistilBERT 分类（`distilbert/`） |
+|--------|----------------------------------|
+| `deepseek/results/tuning_logs/` | `distilbert/results/tuning_logs/` |
+| `deepseek/results/final_sft/` | `distilbert/results/final_loRA/`、`distilbert/results/final_mLoRA/` |
+| `deepseek/results/sft_grid/` | 网格实验按子目录保存（类似 `distilbert/results/` 下按实验分子文件夹的做法） |
 
 ---
 
@@ -29,13 +29,13 @@ cd /d/GitHub_Code/Manifold-Lora
 bash scripts/upload.sh
 ```
 
-`upload.sh` / `upload.ps1` 会递归上传整个 **`deepseek/`** 目录及根目录分类相关文件。
+`upload.sh` / `upload.ps1` 会递归上传 **`distilbert/`** 与 **`deepseek/`** 整包，以及根目录 `lora.py` / `mlora.py` / `optimizers.py`。
 
 ### ② 服务器：修正换行并提交
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
 bash deepseek/scripts/submit_bsub_sft.sh
 ```
 

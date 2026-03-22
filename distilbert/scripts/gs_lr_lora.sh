@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 # LoRA 学习率网格搜索：每个 lr 跑 20 epoch，DistilBERT + SST2
-# 在服务器上运行: cd ~/Manifold-Lora && sed -i 's/\r$//' scripts/*.sh && bash scripts/gs_lr_lora.sh
+# 在服务器上运行: cd ~/Manifold-Lora && sed -i 's/\r$//' distilbert/scripts/*.sh && bash distilbert/scripts/gs_lr_lora.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR/.."
+cd "$SCRIPT_DIR/../.."
 
-# 可改这里扩展/缩小搜索范围（LoRA 第 3 轮 lr 精调）
-# 前两轮结果显示 3e-5 最优，这一轮在其附近加密：
 LR_LIST=(2.5e-5 3e-5 3.5e-5)
 EPOCHS=20
 LORA_TYPE=default
@@ -25,7 +23,7 @@ for LR in "${LR_LIST[@]}"; do
   LORA_ALPHA=$LORA_ALPHA \
   LORA_DROPOUT=$LORA_DROPOUT \
   LR=$LR \
-  bash scripts/submit_bsub.sh
+  bash distilbert/scripts/submit_bsub.sh
   sleep 2
 done
 

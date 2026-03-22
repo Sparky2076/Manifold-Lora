@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 提交 DeepSeek SFT 单卡任务
-# 用法: cd ~/Manifold-Lora && sed -i 's/\r$//' deepseek/scripts/*.sh scripts/*.sh && bash deepseek/scripts/submit_bsub_sft.sh
+# 用法: cd ~/Manifold-Lora && sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh && bash deepseek/scripts/submit_bsub_sft.sh
 
 set -euo pipefail
 

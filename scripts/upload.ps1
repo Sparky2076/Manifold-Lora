@@ -10,29 +10,23 @@ $ProjectDir = Split-Path -Parent $ScriptDir
 $Remote = "${Server}:~/${RemoteDir}/"
 Write-Host "上传到 $Remote"
 
-scp "$ProjectDir/main.py", `
-    "$ProjectDir/models.py", `
-    "$ProjectDir/utils.py", `
-    "$ProjectDir/optimizers.py", `
+scp "$ProjectDir/optimizers.py", `
     "$ProjectDir/lora.py", `
     "$ProjectDir/mlora.py" `
     $Remote
 if (Test-Path "$ProjectDir/requirements.txt") { scp "$ProjectDir/requirements.txt" $Remote }
 
-# DeepSeek 整目录
+scp -r "${ProjectDir}/distilbert" "${Server}:~/${RemoteDir}/"
 scp -r "${ProjectDir}/deepseek" "${Server}:~/${RemoteDir}/"
 
-$scripts = @(
-    "$ProjectDir/scripts/submit_bsub.sh",
-    "$ProjectDir/scripts/run_train_bsub.sh",
-    "$ProjectDir/scripts/watch_metrics.sh",
-    "$ProjectDir/scripts/gs_lr_lora.sh",
-    "$ProjectDir/scripts/gs_lr_mlora.sh"
+$uploadOnly = @(
+    "$ProjectDir/scripts/upload.sh",
+    "$ProjectDir/scripts/upload.ps1"
 )
-foreach ($f in $scripts) {
+foreach ($f in $uploadOnly) {
     if (Test-Path $f) {
         scp $f "${Server}:~/${RemoteDir}/scripts/"
     }
 }
 
-Write-Host "上传完成（含 deepseek/ 目录）"
+Write-Host "上传完成（含 distilbert/ 与 deepseek/ 目录）"

@@ -1,4 +1,4 @@
-# models.py
+# models.py — 序列分类模型加载（distilbert 子包，独立于 deepseek）
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,9 +17,9 @@ class ModelLoadConfig:
     model_name: str = "distilbert/distilbert-base-uncased"
     num_labels: int = 2
     trust_remote_code: bool = False
-    torch_dtype: Optional[str] = None  # "float16", "bfloat16", or None
-    device_map: Optional[str] = None   # "auto" or None
-    use_fast_tokenizer: bool = True   # False for some legacy/remote-code tokenizers
+    torch_dtype: Optional[str] = None
+    device_map: Optional[str] = None
+    use_fast_tokenizer: bool = True
 
 
 def _parse_dtype(torch_dtype: Optional[str]):
@@ -38,13 +38,6 @@ def _parse_dtype(torch_dtype: Optional[str]):
 def load_model_and_tokenizer(cfg: ModelLoadConfig) -> Tuple[torch.nn.Module, "AutoTokenizer"]:
     """
     Load HuggingFace model + tokenizer for sequence classification.
-    Supports:
-      - BERT-like: distilbert, bert, roberta, etc.
-      - Decoder-only LLMs (with trust_remote_code): Qwen, LLaMA, DeepSeek, ChatGLM, etc.
-      - model_name can be HF repo id or local path (e.g. .../snapshots/xxx).
-
-    For large decoder-only models use:
-      --device_map auto --torch_dtype float16 --trust_remote_code
     """
     dtype = _parse_dtype(cfg.torch_dtype)
 
@@ -74,7 +67,7 @@ def load_model_and_tokenizer(cfg: ModelLoadConfig) -> Tuple[torch.nn.Module, "Au
         if tokenizer.eos_token is not None:
             tokenizer.pad_token = tokenizer.eos_token
         else:
-            tokenizer.add_special_tokens({"pad_token": "[PAD]"})
+            tokenizer.add_special_tokens({"pad_token": ""})
 
     model = AutoModelForSequenceClassification.from_pretrained(
         cfg.model_name,
@@ -84,7 +77,6 @@ def load_model_and_tokenizer(cfg: ModelLoadConfig) -> Tuple[torch.nn.Module, "Au
         device_map=cfg.device_map,
     )
 
-    # If we added tokens, resize embeddings.
     if len(tokenizer) > model.get_input_embeddings().num_embeddings:
         model.resize_token_embeddings(len(tokenizer))
 

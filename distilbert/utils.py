@@ -1,4 +1,4 @@
-# utils.py
+# utils.py — GLUE 等分类数据 DataLoader（distilbert 子包）
 from __future__ import annotations
 
 from typing import Tuple
@@ -24,14 +24,9 @@ def build_dataloaders(
 
     Default NLP dataset: GLUE/SST2.
     Metric: accuracy.
-
-    Notes:
-      - Removes the raw text column (e.g., 'sentence') after tokenization; otherwise
-        DataCollatorWithPadding will try to tensorize strings.
     """
     ds = load_dataset(dataset_name, dataset_config)
 
-    # Cache original columns BEFORE mapping so we can remove them after tokenization.
     train_columns = list(ds["train"].column_names)
 
     def preprocess(examples):

@@ -1,6 +1,6 @@
 # DeepSeek 微调方案：任务与数据集选择
 
-当前仓库的 `main.py` 是针对**文本分类**（如 GLUE SST-2）设计的：使用 `AutoModelForSequenceClassification`、交叉熵损失、准确率指标。这类设定适合 BERT/DistilBERT，**不适合**直接用于 DeepSeek 这类**生成式因果语言模型**。下面说明原因、常见做法，并给出在 Hugging Face 上可用的数据集与实现方案。
+当前仓库的 **`distilbert/main.py`**（`python -m distilbert.main`）是针对**文本分类**（如 GLUE SST-2）设计的：使用 `AutoModelForSequenceClassification`、交叉熵损失、准确率指标。这类设定适合 BERT/DistilBERT，**不适合**直接用于 DeepSeek 这类**生成式因果语言模型**。下面说明原因、常见做法，并给出在 Hugging Face 上可用的数据集与实现方案。
 
 ---
 
@@ -123,16 +123,16 @@ ds = load_dataset("tatsu-lab/alpaca")["train"].select(range(1000))
 
 ## 4. 实现方案（两种思路）
 
-### 方案 A：在本仓库内增加「SFT 分支」（已实现，**不修改** `main.py` / `utils.py` / `models.py`）
+### 方案 A：在本仓库内增加「SFT 分支」（已实现，**不修改** `distilbert/main.py` 及同目录 `utils.py` / `models.py`）
 
 本仓库已用**独立文件**实现方案 A，与 DistilBERT 分类流水线并存：
 
 | 路径 | 作用 |
 |------|------|
-| `deepseek/main_sft.py` | SFT 入口（仓库根执行 `python -m deepseek.main_sft`）；训练循环对齐 `main.py`，指标为 **eval loss / perplexity**。 |
+| `deepseek/main_sft.py` | SFT 入口（仓库根执行 `python -m deepseek.main_sft`）；训练循环对齐 `distilbert/main.py`，指标为 **eval loss / perplexity**。 |
 | `deepseek/models_sft.py` | `AutoModelForCausalLM` + Tokenizer。 |
 | `deepseek/utils_sft.py` | Hub 小指令集、Alpaca/Dolly 字段、`labels=-100` 掩码 prompt。 |
-| `deepseek/results/` | 与根目录 `results/` 结构对应：`tuning_logs/`、`final_sft/`、`sft_grid/`。 |
+| `deepseek/results/` | 与 `distilbert/results/` 结构对应：`tuning_logs/`、`final_sft/`、`sft_grid/`。 |
 | `lora.py` / `mlora.py`（根目录） | **复用** LoRA / mLoRA。 |
 | `optimizers.py`（根目录） | **复用** AdamW。 |
 
@@ -176,4 +176,4 @@ python -m deepseek.main_sft --trust_remote_code --device_map auto --torch_dtype 
   - 若希望继续在本仓库玩 LoRA/mlora：按**方案 A** 加 SFT 分支 + Alpaca 数据 + CausalLM。  
   - 若优先「快速在标准设定下微调 DeepSeek」：用 **方案 B**（LLaMA-Factory / TRL / Unsloth）+ 同一批 Hugging Face 数据集。
 
-方案 A 的代码入口为 **`deepseek/main_sft.py`**（`python -m deepseek.main_sft`）；分类仍只用根目录 **`main.py`**。
+方案 A 的代码入口为 **`deepseek/main_sft.py`**（`python -m deepseek.main_sft`）；分类使用 **`distilbert/`** 包（`python -m distilbert.main`）。

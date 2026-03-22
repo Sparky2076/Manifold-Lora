@@ -17,7 +17,7 @@
   - `alpha = 16`
   - `dropout = 0.05`
   - 只作用于 attention 里的 Linear（`attention_only=True`）
-- 提交脚本：`scripts/gs_lr_mlora.sh`（内部调用 `scripts/submit_bsub.sh` → `scripts/run_train_bsub.sh`）
+- 提交脚本：`distilbert/scripts/gs_lr_mlora.sh`（内部调用 `distilbert/scripts/submit_bsub.sh` → `distilbert/scripts/run_train_bsub.sh`）
 
 ### lr 网格结果（mLoRA，第 1 轮）——等待实验完成
 

@@ -1,6 +1,6 @@
 # 最终 DeepSeek SFT 训练（长 epoch）
 
-与 `results/final_loRA/README.md` 形式一致，用于归档「选定 lr 等超参后」的完整一次训练。
+与 `distilbert/results/final_loRA/README.md` 形式一致，用于归档「选定 lr 等超参后」的完整一次训练。
 
 - 日期：（填写）
 - 模型：（如 `DeepSeek-R1-Distill-Qwen-1.5B` 本地路径或 Hub id）

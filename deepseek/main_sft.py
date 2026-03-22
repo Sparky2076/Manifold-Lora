@@ -77,7 +77,7 @@ def train_one_epoch_sft(
     log_every: int,
     global_step: list,
 ) -> float:
-    """结构与根目录 main.py 的 train_one_epoch 一致。"""
+    """结构与 `distilbert/main.py` 的 train_one_epoch 一致。"""
     model.train()
     running_loss = 0.0
     seen = 0

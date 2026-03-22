@@ -1,10 +1,12 @@
-# main.py
+# main.py — DistilBERT / 序列分类 + LoRA；须在仓库根执行: python -m distilbert.main
 from __future__ import annotations
 import argparse
 import math
 import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-os.environ ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+
 import torchvision
 from typing import Tuple
 import torch
@@ -12,9 +14,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
-from models import ModelLoadConfig, load_model_and_tokenizer
+
+from distilbert.models import ModelLoadConfig, load_model_and_tokenizer
+from distilbert.utils import build_dataloaders
 from optimizers import AdamWConfig, get_optimizer
-from utils import build_dataloaders
 
 
 def set_seed(seed: int) -> None:
@@ -28,13 +31,8 @@ def evaluate(
     dataloader: DataLoader,
     device: torch.device,
     use_device_map: bool,
-    desc: str = "[Test]"
+    desc: str = "[Test]",
 ) -> Tuple[float, float]:
-    """Run evaluation with a dedicated progress bar.
-
-    Returns:
-        (avg_loss, accuracy) where accuracy is in [0,1].
-    """
     model.eval()
     total = 0
     correct = 0
@@ -53,7 +51,6 @@ def evaluate(
         loss = outputs.loss
         logits = outputs.logits
 
-        # Ensure labels are on the same device as logits (important when using device_map).
         if labels.device != logits.device:
             labels = labels.to(logits.device)
 
@@ -87,7 +84,6 @@ def train_one_epoch(
     log_every: int = 50,
     global_step: list | None = None,
 ) -> float:
-    """Train for one epoch with its own progress bar. Returns average loss."""
     model.train()
 
     running_loss = 0.0
@@ -113,7 +109,6 @@ def train_one_epoch(
             loss = outputs.loss / args.grad_accum_steps
 
         labels = batch["labels"]
-        # For device_map, labels may stay on CPU; align to logits device for accuracy computation.
         if labels.device != logits.device:
             labels = labels.to(logits.device)
         preds = torch.argmax(logits, dim=-1)
@@ -175,13 +170,9 @@ def train(
     trainable_params,
     metrics_dir: str = ".",
 ) -> Tuple[float, int]:
-    """Full training loop. Evaluates once at the end of each epoch.
-    Each run overwrites train.csv and test.csv so they only contain this run's data.
-    """
     os.makedirs(metrics_dir, exist_ok=True)
     train_csv_path = os.path.join(metrics_dir, "train.csv")
     test_csv_path = os.path.join(metrics_dir, "test.csv")
-    # 每次运行前清空已有内容，确保 bsub 微调完成后 train/test.csv 仅为本次运行数据
     with open(train_csv_path, "w") as f:
         f.write("iteration,train_loss,train_accuracy\n")
     with open(test_csv_path, "w") as f:
@@ -192,7 +183,6 @@ def train(
     global_step = [0]
 
     for epoch in range(1, args.epochs + 1):
-        # ---- Train (progress bar #1) ----
         train_loss = train_one_epoch(
             model=model,
             train_loader=train_loader,
@@ -209,7 +199,6 @@ def train(
             global_step=global_step,
         )
 
-        # ---- Test once per epoch (progress bar #2) ----
         eval_loss, eval_acc = evaluate(
             model=model,
             dataloader=eval_loader,
@@ -238,7 +227,6 @@ def main():
     torchvision.disable_beta_transforms_warning()
     parser = argparse.ArgumentParser()
 
-    # Model / dataset
     parser.add_argument("--model_name", type=str, default="distilbert-base-uncased")
     parser.add_argument("--trust_remote_code", action="store_true")
     parser.add_argument("--dataset_name", type=str, default="glue")
@@ -246,10 +234,9 @@ def main():
     parser.add_argument("--text_field", type=str, default="sentence")
     parser.add_argument("--num_labels", type=int, default=2)
 
-    # Training (defaults tuned for DeepSeek 1.5B stability: smaller lr, batch, longer accum)
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=4)
-    parser.add_argument("--eval_batch_size", type=int, default=128)  # (not used separately here, kept for extension)
+    parser.add_argument("--eval_batch_size", type=int, default=128)
     parser.add_argument("--max_length", type=int, default=128)
     parser.add_argument("--grad_accum_steps", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-5)
@@ -257,11 +244,9 @@ def main():
     parser.add_argument("--warmup_ratio", type=float, default=0.06)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
 
-    # Mixed precision / device map
     parser.add_argument("--torch_dtype", type=str, default=None, choices=[None, "float16", "bfloat16", "float32", "fp16", "bf16", "fp32"])
-    parser.add_argument("--device_map", type=str, default=None)  # e.g., "auto"
+    parser.add_argument("--device_map", type=str, default=None)
 
-    # LoRA
     parser.add_argument("--lora_r", type=int, default=8)
     parser.add_argument("--lora_alpha", type=float, default=16.0)
     parser.add_argument("--lora_dropout", type=float, default=0.05)
@@ -269,7 +254,6 @@ def main():
     parser.add_argument("--lora_targets", type=str, default="q_proj,k_proj,v_proj,out_proj,q_lin,k_lin,v_lin,out_lin,c_attn,c_proj")
     parser.add_argument("--lora_type", type=str, default="default", choices=["default", "mlora"])
 
-    # Logging
     parser.add_argument("--log_every", type=int, default=50)
     parser.add_argument("--eval_every", type=int, default=50, help="Accepted for compatibility; evaluation is per-epoch.")
     parser.add_argument("--num_workers", type=int, default=0)
@@ -277,12 +261,9 @@ def main():
 
     args = parser.parse_args()
 
-    # Device handling:
-    # If device_map is used (accelerate-style), model may be sharded; in that case we do not .to(device).
     use_device_map = args.device_map is not None
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Load model/tokenizer
     model_cfg = ModelLoadConfig(
         model_name=args.model_name,
         num_labels=args.num_labels,
@@ -295,7 +276,6 @@ def main():
     if not use_device_map:
         model.to(device)
 
-    # Data
     train_loader, eval_loader = build_dataloaders(
         tokenizer=tokenizer,
         dataset_name=args.dataset_name,
@@ -307,11 +287,12 @@ def main():
     )
     if args.lora_type == "default":
         from lora import LoRAConfig, apply_lora, mark_only_lora_as_trainable, lora_trainable_parameters
+
         print("[Info] Using default LoRA implementation from lora.py")
     elif args.lora_type == "mlora":
         from mlora import LoRAConfig, apply_lora, mark_only_lora_as_trainable, lora_trainable_parameters
+
         print("[Info] Using mLoRA implementation from mlora.py")
-    # Apply LoRA
     targets = [t.strip() for t in args.lora_targets.split(",") if t.strip()]
     lora_cfg = LoRAConfig(
         r=args.lora_r,
@@ -328,14 +309,12 @@ def main():
     n_total = sum(p.numel() for p in model.parameters())
     print(f"[Params] trainable={n_trainable:,} / total={n_total:,} ({100.0*n_trainable/n_total:.4f}%)")
 
-    # Optimizer (from optimizers.py)
     opt_cfg = AdamWConfig(
         lr=args.lr,
         weight_decay=args.weight_decay,
     )
     optimizer = get_optimizer(trainable, opt_cfg)
 
-    # Scheduler
     steps_per_epoch = math.ceil(len(train_loader) / args.grad_accum_steps)
     total_steps = steps_per_epoch * args.epochs
     warmup_steps = int(total_steps * args.warmup_ratio)
@@ -345,7 +324,6 @@ def main():
         num_training_steps=total_steps,
     )
 
-    # Training loop
     scaler = torch.cuda.amp.GradScaler(enabled=(args.torch_dtype in ("float16", "fp16")) and torch.cuda.is_available())
 
     best_acc, best_epoch = train(
@@ -370,8 +348,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-""" python main.py --model_name distilbert/distilbert-base-uncased --dataset_name glue --dataset_config sst2 --text_field sentence --epochs 3 --batch_size 32 --max_length 256 --lr 2e-4 --weight_decay 0.01 --lora_r 8 --lora_alpha 16 --lora_dropout 0.05 --log_every 100 """
-
-""" python main.py --model_name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --trust_remote_code --device_map auto --torch_dtype bfloat16 --dataset_name glue --dataset_config sst2 --text_field sentence --epochs 1 --batch_size 8 --max_length 256 --lr 2e-4 --weight_decay 0.01 --lora_r 8 --lora_alpha 16 --lora_dropout 0.05 --log_every 100 """

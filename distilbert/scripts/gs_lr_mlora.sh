@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 # mLoRA 学习率网格搜索：每个 lr 跑 20 epoch，DistilBERT + SST2
-# 在服务器上运行: cd ~/Manifold-Lora && sed -i 's/\r$//' scripts/*.sh && bash scripts/gs_lr_mlora.sh
+# 在服务器上运行: cd ~/Manifold-Lora && sed -i 's/\r$//' distilbert/scripts/*.sh && bash distilbert/scripts/gs_lr_mlora.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR/.."
+cd "$SCRIPT_DIR/../.."
 
-# 可改这里扩展/缩小搜索范围（mLoRA 第 4 轮 lr 上调）
-# 第 3 轮显示 1.2e-4 仍随 lr 单调提升，本轮继续加大 lr：
 LR_LIST=(1.2e-4 1.5e-4 2e-4)
 EPOCHS=20
 LORA_TYPE=mlora
@@ -25,7 +23,7 @@ for LR in "${LR_LIST[@]}"; do
   LORA_ALPHA=$LORA_ALPHA \
   LORA_DROPOUT=$LORA_DROPOUT \
   LR=$LR \
-  bash scripts/submit_bsub.sh
+  bash distilbert/scripts/submit_bsub.sh
   sleep 2
 done
 

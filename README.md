@@ -6,13 +6,13 @@
 
 | 流水线 | 入口 | 提交脚本 | 指标 CSV（默认目录） |
 |--------|------|----------|----------------------|
-| **DistilBERT 文本分类** | `main.py` | `scripts/submit_bsub.sh` | `train.csv`、`test.csv`（项目根或 `METRICS_DIR`） |
+| **DistilBERT 文本分类** | `distilbert/main.py`（`python -m distilbert.main`） | `distilbert/scripts/submit_bsub.sh` | **`distilbert/results/`** 下 `train.csv`、`test.csv`（或 `METRICS_DIR`） |
 | **DeepSeek 指令微调 SFT** | `deepseek/main_sft.py`（`python -m deepseek.main_sft`） | `deepseek/scripts/submit_bsub_sft.sh` | `deepseek/results/train_sft.csv`、`test_sft.csv`（或 `METRICS_DIR`） |
 
-- **DistilBERT**：代码与脚本在仓库**根目录**（`main.py`、`scripts/`、`results/`）。
-- **DeepSeek**：独立目录 **`deepseek/`**（代码、`deepseek/scripts/`、**`deepseek/results/`**），与 `results/` 并列；训练仍**复用**根目录 `lora.py` / `mlora.py` / `optimizers.py`（**不改** `main.py` / `models.py` / `utils.py`）。
+- **DistilBERT**：独立目录 **`distilbert/`**（`main.py`、`models.py`、`utils.py`、`distilbert/scripts/`、**`distilbert/results/`**）。
+- **DeepSeek**：独立目录 **`deepseek/`**（代码、`deepseek/scripts/`、**`deepseek/results/`**）；两条线均**复用**根目录 `lora.py` / `mlora.py` / `optimizers.py`。
 
-**DeepSeek 全流程、网格、监控的完整说明见：[deepseek/README.md](deepseek/README.md)。**
+**DistilBERT 全流程见：[distilbert/README.md](distilbert/README.md)。DeepSeek 见：[deepseek/README.md](deepseek/README.md)。**
 
 ---
 
@@ -20,7 +20,7 @@
 
 改完代码后：**本机上传 → SSH 上 `sed` 换行 → `bsub` 提交 → 本机 `scp` 拉回 CSV**。下面按两条流水线分别写，**步骤编号与命令形式与 DistilBERT 保持一致**。
 
-#### 0.1 DistilBERT 分类（`main.py`）
+#### 0.1 DistilBERT 分类（`distilbert/`，`python -m distilbert.main`）
 
 **① 本机上传到服务器**（本地 **Git Bash**，会提示输入服务器密码）：
 
@@ -33,25 +33,25 @@ bash scripts/upload.sh
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh
-bash scripts/submit_bsub.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
+bash distilbert/scripts/submit_bsub.sh
 ```
 
 - 第一句 `sed`：把 Windows 上传的 `.sh` 从 CRLF 改为 LF，避免 `$'\r': command not found` / `set: pipefail`。
-- 第二句：提交单卡任务，默认 **DistilBERT + GLUE SST2**。查看任务：`bjobs`；日志：`cat JOBID.out`、`cat JOBID.err`。
+- 第二句：提交单卡任务，默认 **DistilBERT + GLUE SST2**，默认 **`METRICS_DIR=~/Manifold-Lora/distilbert/results`**。查看任务：`bjobs`；日志：`cat JOBID.out`、`cat JOBID.err`。
 
-**③ 本机保存训练结果 CSV**（本地 **PowerShell** 或 **Git Bash**；将 `196` 换成当前学校服务器 IP，如 `197`）：
+**③ 本机保存训练结果 CSV**（本地 **PowerShell** 或 **Git Bash**；将 IP 换成当前学校服务器）：
 
 ```powershell
 cd D:\GitHub_Code\Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
-scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
+scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/test.csv distilbert/results/
 ```
 
 ```bash
 cd /d/GitHub_Code/Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
-scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
+scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/test.csv distilbert/results/
 ```
 
 若任务里设置了 `METRICS_DIR` 为子目录（如网格搜索），把远端路径改成该目录下的 `train.csv` / `test.csv`。
@@ -60,7 +60,7 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
 
 #### 0.2 DeepSeek 指令微调 SFT（与 0.1 步骤一一对应，**文件均在 `deepseek/`**）
 
-**① 本机上传**（与 0.1 相同；`upload.sh` 会 **`scp -r deepseek/`** 整包上传）：
+**① 本机上传**（与 0.1 相同；`upload.sh` 会 **`scp -r distilbert/`** 与 **`scp -r deepseek/`** 整包上传）：
 
 ```bash
 cd /d/GitHub_Code/Manifold-Lora
@@ -71,7 +71,7 @@ bash scripts/upload.sh
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
 bash deepseek/scripts/submit_bsub_sft.sh
 ```
 
@@ -96,7 +96,7 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/test_sft.csv deeps
 
 | 脚本 | 适用流水线 | 监控文件（默认目录） |
 |------|------------|----------------------|
-| `scripts/watch_metrics.sh` | DistilBERT `main.py` | 项目根 `train.csv`、`test.csv` |
+| `distilbert/scripts/watch_metrics.sh` | DistilBERT 分类 | **`distilbert/results/`** 下 `train.csv`、`test.csv` |
 | `deepseek/scripts/watch_metrics_sft.sh` | DeepSeek SFT | **`deepseek/results/`** 下 `train_sft.csv`、`test_sft.csv` |
 
 **DistilBERT（服务器）**：
@@ -104,7 +104,7 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/test_sft.csv deeps
 ```bash
 ssh wangxiao@202.121.138.196
 cd ~/Manifold-Lora
-bash scripts/watch_metrics.sh
+bash distilbert/scripts/watch_metrics.sh
 ```
 
 **DeepSeek SFT（服务器）**：
@@ -128,7 +128,7 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 
 - 模型：`distilbert-base-uncased`
 - 数据集：GLUE `sst2`，字段 `sentence`
-- 训练超参（见 `scripts/run_train_bsub.sh` 和 `main.py`）：
+- 训练超参（见 `distilbert/scripts/run_train_bsub.sh` 和 `distilbert/main.py`）：
   - `epochs = 50`（可由环境变量 `EPOCHS` 覆盖）
   - `batch_size = 4`、`grad_accum_steps = 8`
   - `lr = 1e-5`、`max_length = 128`
@@ -144,7 +144,7 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 
 配置、默认超参、结果目录 **`deepseek/results/`**（含 `tuning_logs/`、`final_sft/`、`sft_grid/`）的说明见 **[deepseek/README.md](deepseek/README.md)** 与 **[docs/DEEPSEEK_FINETUNE_PLAN.md](docs/DEEPSEEK_FINETUNE_PLAN.md)**。
 
-> **不推荐**：用 `main.py` + GLUE 分类跑 DeepSeek；标准做法为 **`python -m deepseek.main_sft`**（在仓库根执行）。
+> **不推荐**：用 DistilBERT 分类流水线跑 DeepSeek；标准做法为 **`python -m deepseek.main_sft`**（在仓库根执行）。
 
 ---
 
@@ -156,23 +156,23 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 
 | 脚本 | 说明 |
 |------|------|
-| `scripts/gs_lr_lora.sh` | DistilBERT + LoRA：`lr` 多组 × 固定 epoch，多个 job |
-| `scripts/gs_lr_mlora.sh` | DistilBERT + mLoRA：同上 |
+| `distilbert/scripts/gs_lr_lora.sh` | DistilBERT + LoRA：`lr` 多组 × 固定 epoch，多个 job |
+| `distilbert/scripts/gs_lr_mlora.sh` | DistilBERT + mLoRA：同上 |
 | `deepseek/scripts/gs_lr_deepseek_sft.sh` | DeepSeek SFT 网格：`lr` 多组，结果写入 **`deepseek/results/sft_grid/`** |
 | `deepseek/scripts/submit_bsub_sft.sh` | SFT 单 job；默认 `METRICS_DIR=$PROJECT_DIR/deepseek/results` |
 | `deepseek/scripts/run_deepseek_sft_bsub.sh` | 计算节点执行 `python -m deepseek.main_sft` |
-| `scripts/submit_bsub.sh` | DistilBERT 分类；转发 `EPOCHS`、`LR`、`LORA_*` 等 |
-| `scripts/upload.sh`、`scripts/upload.ps1` | 上传根目录分类相关 `.py` + **`scp -r deepseek/`** |
+| `distilbert/scripts/submit_bsub.sh` | DistilBERT 分类；转发 `EPOCHS`、`LR`、`LORA_*` 等 |
+| `scripts/upload.sh`、`scripts/upload.ps1` | 上传 **`distilbert/`** + **`deepseek/`** + 根目录 `lora.py` / `mlora.py` / `optimizers.py` |
 
 #### 4.2 在服务器上提交网格
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
 ```
 
-- **LoRA**：`bash scripts/gs_lr_lora.sh`
-- **mLoRA**：`bash scripts/gs_lr_mlora.sh`
+- **LoRA**：`bash distilbert/scripts/gs_lr_lora.sh`
+- **mLoRA**：`bash distilbert/scripts/gs_lr_mlora.sh`
 - **DeepSeek SFT**：`bash deepseek/scripts/gs_lr_deepseek_sft.sh`
 
 #### 4.3 查看任务与指标
@@ -184,7 +184,7 @@ cat JOBID.out
 cat JOBID.err
 ```
 
-- 分类：`tail -20 train.csv`、`tail -20 test.csv`（或你的 `METRICS_DIR`）
+- 分类：`tail -20 distilbert/results/train.csv`、`tail -20 distilbert/results/test.csv`（或你的 `METRICS_DIR`）
 - SFT：`tail -20 deepseek/results/train_sft.csv` 等（或 **`deepseek/results/sft_grid/某目录/`** 下）
 
 #### 4.4 保存结果到本机（与 0.1 / 0.2 一致）
@@ -193,8 +193,8 @@ cat JOBID.err
 
 ```powershell
 cd D:\GitHub_Code\Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
-scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
+scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/test.csv distilbert/results/
 ```
 
 SFT 默认目录 **`deepseek/results/`**：
@@ -204,7 +204,7 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/train_sft.csv deep
 scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/test_sft.csv deepseek/results/
 ```
 
-网格结果在 **`deepseek/results/sft_grid/`**；归档时请放入本仓库 **`deepseek/results/`** 下对应子目录（与 DistilBERT 使用根目录 **`results/`** 对称）。
+网格结果在 **`deepseek/results/sft_grid/`**；归档时请放入本仓库 **`deepseek/results/`** 下对应子目录（与 DistilBERT 使用 **`distilbert/results/`** 对称）。
 
 ---
 
@@ -219,3 +219,16 @@ python -m deepseek.main_sft --trust_remote_code --device_map auto --torch_dtype 
 ```
 
 无 GPU 或勿在登录节点长跑时，请只用第 **0.2** 节的 `bsub` 流程。
+
+---
+
+### 6. 本机直接试跑 DistilBERT 分类（可选，非 bsub）
+
+在**仓库根目录**执行：
+
+```bash
+python -m distilbert.main --model_name distilbert-base-uncased ^
+  --dataset_name glue --dataset_config sst2 --epochs 1 --batch_size 4 --metrics_dir distilbert/results
+```
+
+更细的说明见 **[distilbert/README.md](distilbert/README.md)**。
