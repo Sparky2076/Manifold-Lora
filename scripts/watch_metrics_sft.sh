@@ -5,7 +5,6 @@
 # 若指标在子目录（如网格搜索）:
 #   METRICS_DIR=results/sft_grid/testing_alpaca_small_lr_1e_5 bash scripts/watch_metrics_sft.sh
 
-set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIR="${METRICS_DIR:-$ROOT}"
 cd "$DIR"
