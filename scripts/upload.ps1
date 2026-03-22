@@ -11,8 +11,11 @@ $Remote = "${Server}:~/${RemoteDir}/"
 Write-Host "上传到 $Remote"
 
 scp "$ProjectDir/main.py", `
+    "$ProjectDir/main_sft.py", `
     "$ProjectDir/models.py", `
+    "$ProjectDir/models_sft.py", `
     "$ProjectDir/utils.py", `
+    "$ProjectDir/utils_sft.py", `
     "$ProjectDir/optimizers.py", `
     "$ProjectDir/lora.py", `
     "$ProjectDir/mlora.py" `
@@ -22,7 +25,11 @@ if (Test-Path "$ProjectDir/requirements.txt") { scp "$ProjectDir/requirements.tx
 $scripts = @(
     "$ProjectDir/scripts/submit_bsub.sh",
     "$ProjectDir/scripts/run_train_bsub.sh",
+    "$ProjectDir/scripts/submit_bsub_sft.sh",
+    "$ProjectDir/scripts/run_deepseek_sft_bsub.sh",
+    "$ProjectDir/scripts/gs_lr_deepseek_sft.sh",
     "$ProjectDir/scripts/watch_metrics.sh",
+    "$ProjectDir/scripts/watch_metrics_sft.sh",
     "$ProjectDir/scripts/gs_lr_lora.sh",
     "$ProjectDir/scripts/gs_lr_mlora.sh"
 )

@@ -1,26 +1,32 @@
 ## Manifold-Lora (个人实验 Fork)
 
-基于原始 Manifold-Lora 项目的个人实验仓库，用于在 DistilBERT、DeepSeek-1.5B 等模型上做 LoRA / mLoRA 微调，并方便在学校 GPU 集群上提交和监控任务。
+基于原始 Manifold-Lora 项目的个人实验仓库，用于在 DistilBERT、DeepSeek-1.5B 等模型上做 LoRA / mLoRA 微调，并方便在学校 GPU 集群（SSH + `bsub`）上提交和监控任务。
 
-本仓库当前主要增加了三块内容（已更新至 2026-03-10）：
-- **DistilBERT + LoRA 微调流水线**：`main.py` + `models.py` + `scripts/run_train_bsub.sh` / `scripts/submit_bsub.sh`
-- **LoRA / mLoRA 在 DeepSeek 等大模型上的 dtype 适配**（在 `lora.py` / `mlora.py` 中）
-- **训练过程中实时查看 `train.csv` / `test.csv` 的监控脚本 `scripts/watch_metrics.sh`**
+本仓库主要包含两条流水线（形式对齐，便于对照）：
+
+| 流水线 | 入口 | 提交脚本 | 指标 CSV（默认目录） |
+|--------|------|----------|----------------------|
+| **DistilBERT 文本分类** | `main.py` | `scripts/submit_bsub.sh` | `train.csv`、`test.csv`（项目根或 `METRICS_DIR`） |
+| **DeepSeek 指令微调 SFT** | `main_sft.py` | `scripts/submit_bsub_sft.sh` | `train_sft.csv`、`test_sft.csv`（项目根或 `METRICS_DIR`） |
+
+共用：`lora.py` / `mlora.py`、`optimizers.py`；SFT 另含 `models_sft.py`、`utils_sft.py`（**不修改**原 `models.py` / `utils.py` / `main.py`）。
 
 ---
 
-### 0. 上传代码、提交任务与下载结果（常用流程）
+### 0. 上传代码、提交任务与下载结果（SSH 服务器全流程）
 
-改完代码后按下面几步做，避免忘记。
+改完代码后：**本机上传 → SSH 上 `sed` 换行 → `bsub` 提交 → 本机 `scp` 拉回 CSV**。下面按两条流水线分别写，**步骤编号与命令形式与 DistilBERT 保持一致**。
 
-**① 本机上传到服务器**（在本地 **Git Bash** 执行，会提示输入服务器密码）：
+#### 0.1 DistilBERT 分类（`main.py`）
+
+**① 本机上传到服务器**（本地 **Git Bash**，会提示输入服务器密码）：
 
 ```bash
 cd /d/GitHub_Code/Manifold-Lora
 bash scripts/upload.sh
 ```
 
-**② 服务器上修正脚本换行并提交训练任务**（先 SSH 登录，再执行）：
+**② 服务器上修正脚本换行并提交训练任务**（SSH 登录后执行）：
 
 ```bash
 cd ~/Manifold-Lora
@@ -28,173 +34,16 @@ sed -i 's/\r$//' scripts/*.sh
 bash scripts/submit_bsub.sh
 ```
 
-- 第一句 `sed` 是把从 Windows 上传过去的 `.sh` 脚本从 CRLF 换行改成 LF，避免 `$'\r': command not found` / `set: pipefail` 这类错误。
-- 第二句会向 LSF 提交单卡任务，默认用 DistilBERT + GLUE SST2；查看任务状态用 `bjobs`，看输出用 `cat JOBID.out` / `cat JOBID.err`。
+- 第一句 `sed`：把 Windows 上传的 `.sh` 从 CRLF 改为 LF，避免 `$'\r': command not found` / `set: pipefail`。
+- 第二句：提交单卡任务，默认 **DistilBERT + GLUE SST2**。查看任务：`bjobs`；日志：`cat JOBID.out`、`cat JOBID.err`。
 
-**③ 在本机保存训练结果 CSV**（在本地 PowerShell 执行，把服务器上的 `train.csv` / `test.csv` 拷回本地仓库目录）：
-
-```powershell
-cd D:\GitHub_Code\Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
-scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
-```
-
-执行完后，会在本地 `D:\GitHub_Code\Manifold-Lora` 目录下看到最新一次微调生成的 `train.csv` 和 `test.csv`。
-
----
-
-### 1. 实时查看 train/test 指标：`scripts/watch_metrics.sh`
-
-脚本路径：`scripts/watch_metrics.sh`
-
-功能：
-- 每 5 秒刷新一次本目录下 `train.csv` 和 `test.csv` 的最后 5 行
-- 便于在 bsub 提交的训练任务运行时，实时观察 loss / accuracy 变化
-
-#### 使用方法（在服务器上）
-
-1. SSH 登录服务器：
-
-```bash
-ssh wangxiao@202.121.138.196
-```
-
-2. 进入项目目录并运行脚本：
-
-```bash
-cd ~/Manifold-Lora
-```
-```bash
-bash scripts/watch_metrics.sh
-```
-
-- 终端会每 5 秒刷新一次 `train.csv` / `test.csv` 尾部信息
-- 按 **Ctrl+C** 即可退出脚本，不会影响正在运行的 bsub 训练任务
-
----
-
-### 2. DistilBERT + LoRA 微调说明（当前默认配置）
-
-- 模型：`distilbert-base-uncased`
-- 数据集：GLUE `sst2`，字段 `sentence`
-- 训练超参（见 `scripts/run_train_bsub.sh` 和 `main.py`）：
-  - `epochs = 50`
-  - `batch_size = 4`
-  - `grad_accum_steps = 8`
-  - `lr = 1e-5`
-  - `max_length = 128`
-  - LoRA：`r=8, alpha=16, dropout=0.05`，只作用于 attention 里的 Linear
-- 指标写入：
-  - 每次运行开始时会**清空并重写** `train.csv` / `test.csv` 表头，保证只包含本次微调的数据
-  - `train.csv`：`iteration,train_loss,train_accuracy`
-  - `test.csv`：`iteration,test_loss,test_accuracy`
-
----
-
-### 3. DeepSeek-1.5B 调参示例（bsub 提交）
-
-**说明**：当前 `main.py` 是**文本分类**流水线（GLUE SST-2），不适合 DeepSeek 这类生成式模型。若要用 DeepSeek 做**指令跟随 / 对话 / 问答**等任务，请参考 **[docs/DEEPSEEK_FINETUNE_PLAN.md](docs/DEEPSEEK_FINETUNE_PLAN.md)**，其中给出了常用任务与 Hugging Face 数据集（如 Alpaca、Dolly）、以及在本仓库加 SFT 分支或使用 LLaMA-Factory/TRL 的两种方案。
-
-下面是一个更保守、更稳定的 bsub 提交命令示例（仅当沿用「分类」设定时参考），只调整了超参数，**没有改任何 Python 代码逻辑**。
-
-在登录节点 `mgtgpu01` 上执行：
-
-```bash
-cd ~/Manifold-Lora
-
-SNAP=$(ls ~/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-1.5B/snapshots/ | head -1)
-MODEL_PATH="/nfsshare/home/wangxiao/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-1.5B/snapshots/$SNAP"
-
-bsub -J manifold_lora_tune \
-  -q gpu \
-  -n 1 \
-  -R "rusage[mem=32768]" \
-  -gpu "num=1" \
-  -o "%J.out" \
-  -e "%J.err" \
-  "source ~/miniconda3/etc/profile.d/conda.sh; conda activate torch; cd ~/Manifold-Lora; \
-   python main.py \
-     --model_name \"$MODEL_PATH\" \
-     --dataset_name glue --dataset_config sst2 --text_field sentence \
-     --epochs 1 --batch_size 4 --max_length 128 \
-     --grad_accum_steps 8 \
-     --lr 1e-5"
-```
-
-要点：
-- **只调整了参数**：`batch_size=4`、`grad_accum_steps=8`、`lr=1e-5`，其余使用当前代码中的默认逻辑（包括 LoRA 配置）。
-- 任务在 `gpu` 队列的 GPU 节点上运行，避免在登录节点 CPU 上用 Half 精度导致的 `"addmm_impl_cpu_" not implemented for 'Half'` 错误。
-
-训练运行后，可以在另一个 SSH 终端中使用 `watch_metrics.sh` 监控 `train.csv` / `test.csv`：
-
-```bash
-ssh wangxiao@202.121.138.196
-cd ~/Manifold-Lora
-bash scripts/watch_metrics.sh
-```
-
----
-
-### 4. LoRA / mLoRA 学习率网格搜索（Grid Search）
-
-本仓库提供自动按多组学习率提交任务的脚本，用于在相同 epoch 下对比不同 `lr` 的效果。**本机上传到服务器仍由你在 Git Bash 中执行**（见第 0 节），此处只说明服务器上的提交、查看与保存结果。
-
-#### 4.1 相关脚本说明
-
-| 脚本 | 说明 |
-|------|------|
-| `scripts/gs_lr_lora.sh` | LoRA 学习率网格：`lr` 取 `5e-6, 1e-5, 2e-5, 5e-5`，每个跑 20 epoch，自动提交 4 个 job。 |
-| `scripts/gs_lr_mlora.sh` | mLoRA 学习率网格：同样的 `lr` 列表和 20 epoch，自动提交 4 个 job。 |
-| `scripts/submit_bsub.sh` | 已改为把 `EPOCHS` / `LR` / `LORA_TYPE` / `LORA_R` / `LORA_ALPHA` / `LORA_DROPOUT` 等环境变量传进 bsub 任务，网格搜索里设的参会在计算节点上生效。 |
-| `scripts/upload.sh`、`scripts/upload.ps1` | 已加入对 `gs_lr_lora.sh`、`gs_lr_mlora.sh` 的上传；`upload.ps1` 中 `requirements.txt` 为可选。 |
-
-#### 4.2 提交脚本（在服务器上执行）
-
-上传完成后，SSH 登录服务器，先修换行再跑网格搜索：
-
-```bash
-cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh
-```
-
-- 只跑 **LoRA** 的 lr 网格（4 个 job）：
-  ```bash
-  bash scripts/gs_lr_lora.sh
-  ```
-- 只跑 **mLoRA** 的 lr 网格（4 个 job）：
-  ```bash
-  bash scripts/gs_lr_mlora.sh
-  ```
-
-#### 4.3 查看任务与输出文件
-
-- 查看任务状态：
-  ```bash
-  bjobs
-  bjobs -d
-  ```
-- 查看某个 job 的日志（把 `JOBID` 换成实际 job 号）：
-  ```bash
-  cat JOBID.out
-  cat JOBID.err
-  ```
-- 查看当前目录下本次运行写入的指标（每次运行会覆盖）：
-  ```bash
-  tail -20 train.csv
-  tail -20 test.csv
-  ```
-
-#### 4.4 保存结果文件到本机
-
-在**本机** PowerShell 或 Git Bash 执行，将服务器上当前 `train.csv` / `test.csv` 拷到本地项目根目录：
+**③ 本机保存训练结果 CSV**（本地 **PowerShell** 或 **Git Bash**；将 `196` 换成当前学校服务器 IP，如 `197`）：
 
 ```powershell
 cd D:\GitHub_Code\Manifold-Lora
 scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
 scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
 ```
-
-或 Git Bash：
 
 ```bash
 cd /d/GitHub_Code/Manifold-Lora
@@ -202,5 +51,192 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
 scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
 ```
 
-拷完后可在本地用 Excel 或脚本分析；若需按实验归档，可再放入 `results/` 下对应子目录并提交到 GitHub。
+若任务里设置了 `METRICS_DIR` 为子目录（如网格搜索），把远端路径改成该目录下的 `train.csv` / `test.csv`。
 
+---
+
+#### 0.2 DeepSeek 指令微调 SFT（`main_sft.py`，与 0.1 步骤一一对应）
+
+**① 本机上传到服务器**（与 0.1 相同，`upload.sh` / `upload.ps1` 已包含 `main_sft.py`、`models_sft.py`、`utils_sft.py` 及 SFT 相关 `.sh`）：
+
+```bash
+cd /d/GitHub_Code/Manifold-Lora
+bash scripts/upload.sh
+```
+
+**② 服务器上修正脚本换行并提交 SFT 任务**：
+
+```bash
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh
+bash scripts/submit_bsub_sft.sh
+```
+
+- 默认：**DeepSeek-R1-Distill-Qwen-1.5B** + 小指令集预设 `testing_alpaca_small`（可在 `scripts/run_deepseek_sft_bsub.sh` 或环境变量里改 `MODEL_NAME`、`SFT_PRESET`）。
+- 使用 **本地 HF 缓存模型路径**时，与原先 DistilBERT 流程类似，在服务器设 `MODEL_NAME` 再提交，例如：
+  ```bash
+  export MODEL_NAME="/nfsshare/home/wangxiao/.cache/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-1.5B/snapshots/<SNAP哈希>"
+  bash scripts/submit_bsub_sft.sh
+  ```
+
+**③ 本机保存 SFT 指标 CSV**（默认写在项目根目录；列名与分类不同，文件名为 `train_sft.csv` / `test_sft.csv`）：
+
+```powershell
+cd D:\GitHub_Code\Manifold-Lora
+scp wangxiao@202.121.138.196:~/Manifold-Lora/train_sft.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/test_sft.csv .
+```
+
+网格搜索时，每个学习率对应目录在服务器 `~/Manifold-Lora/results/sft_grid/` 下，例如：
+
+```powershell
+scp wangxiao@202.121.138.196:~/Manifold-Lora/results/sft_grid/testing_alpaca_small_lr_1e_5/train_sft.csv ./results/sft_grid/
+```
+
+（请先在本机建好 `results/sft_grid/` 等目录，或改成你希望的路径。）
+
+**学习率网格（与 4.2 节 DistilBERT 网格形式一致，在服务器执行）**：
+
+```bash
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh
+bash scripts/gs_lr_deepseek_sft.sh
+```
+
+各 job 的 `METRICS_DIR` 为 `results/sft_grid/<预设>_lr_<学习率>/`，内含 `train_sft.csv`、`test_sft.csv`。
+
+---
+
+### 1. 实时查看指标（与 CSV 形式对应）
+
+| 脚本 | 适用流水线 | 监控文件 |
+|------|------------|----------|
+| `scripts/watch_metrics.sh` | DistilBERT `main.py` | `train.csv`、`test.csv`（项目根） |
+| `scripts/watch_metrics_sft.sh` | DeepSeek SFT `main_sft.py` | `train_sft.csv`、`test_sft.csv` |
+
+**DistilBERT（服务器）**：
+
+```bash
+ssh wangxiao@202.121.138.196
+cd ~/Manifold-Lora
+bash scripts/watch_metrics.sh
+```
+
+**DeepSeek SFT（服务器）**：
+
+```bash
+cd ~/Manifold-Lora
+bash scripts/watch_metrics_sft.sh
+```
+
+指标在子目录时：
+
+```bash
+METRICS_DIR=results/sft_grid/testing_alpaca_small_lr_2e_5 bash scripts/watch_metrics_sft.sh
+```
+
+按 **Ctrl+C** 退出监控，不影响正在运行的 `bsub` 任务。
+
+---
+
+### 2. DistilBERT + LoRA 微调说明（默认配置，与脚本一致）
+
+- 模型：`distilbert-base-uncased`
+- 数据集：GLUE `sst2`，字段 `sentence`
+- 训练超参（见 `scripts/run_train_bsub.sh` 和 `main.py`）：
+  - `epochs = 50`（可由环境变量 `EPOCHS` 覆盖）
+  - `batch_size = 4`、`grad_accum_steps = 8`
+  - `lr = 1e-5`、`max_length = 128`
+  - LoRA：`r=8, alpha=16, dropout=0.05`
+- 指标文件：
+  - 每次运行开始会**清空并重写**表头
+  - `train.csv`：`iteration,train_loss,train_accuracy`
+  - `test.csv`：`iteration,test_loss,test_accuracy`
+
+---
+
+### 3. DeepSeek SFT + LoRA 说明（与第 2 节形式对齐）
+
+- 模型：默认 `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`（`scripts/run_deepseek_sft_bsub.sh` 中 `MODEL_NAME`，建议服务器改用本地 snapshot 路径）
+- 数据：**Hub 小指令集预设**（`--sft_preset`），默认 `testing_alpaca_small`；可选 `alpaca_gpt4_500`、`alpaca_train_500`、`alpaca_train_1k`（见 `utils_sft.py`）
+- 训练超参（见 `scripts/run_deepseek_sft_bsub.sh` / `main_sft.py`）：
+  - `epochs = 5`、`batch_size = 2`、`grad_accum_steps = 8`
+  - `max_length = 512`、`lr = 2e-5`（网格脚本可覆盖 `LR`）
+  - `torch_dtype = float16`、`device_map = auto`（与单卡大模型常见设定一致）
+  - LoRA：`r=8, alpha=16, dropout=0.05`，目标模块含 `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,...`
+- 指标文件（**不与**分类的 `train.csv` 混用）：
+  - `train_sft.csv`：`iteration,train_loss,train_perplexity`
+  - `test_sft.csv`：`iteration,eval_loss,eval_perplexity`
+- 任务背景与更多数据集说明：**[docs/DEEPSEEK_FINETUNE_PLAN.md](docs/DEEPSEEK_FINETUNE_PLAN.md)**
+
+> **不推荐**：用 `main.py` + GLUE 分类任务跑 DeepSeek（生成模型与分类头不匹配）。若必须试跑，需自行改参；标准做法请用本节 **SFT + `main_sft.py`**。
+
+---
+
+### 4. 学习率网格搜索（Grid Search）
+
+**本机仍只负责 `bash scripts/upload.sh`**（见第 0 节）；网格在**服务器**上执行。
+
+#### 4.1 相关脚本说明
+
+| 脚本 | 说明 |
+|------|------|
+| `scripts/gs_lr_lora.sh` | DistilBERT + LoRA：`lr` 多组 × 固定 epoch，多个 job |
+| `scripts/gs_lr_mlora.sh` | DistilBERT + mLoRA：同上 |
+| `scripts/gs_lr_deepseek_sft.sh` | DeepSeek SFT：默认 `lr` 为 `1e-5 2e-5 5e-5`，结果写入 `results/sft_grid/.../` |
+| `scripts/submit_bsub.sh` | 分类任务；转发 `EPOCHS`、`LR`、`LORA_*` 等 |
+| `scripts/submit_bsub_sft.sh` | SFT 任务；转发 `EPOCHS`、`LR`、`LORA_*`、`SFT_PRESET`、`SFT_DATASET`、`MAX_LENGTH` 等 |
+| `scripts/upload.sh`、`scripts/upload.ps1` | 上传核心 `.py` 与上述 `.sh`（含 SFT 与 `watch_metrics_sft.sh`） |
+
+#### 4.2 在服务器上提交网格
+
+```bash
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh
+```
+
+- **LoRA**：`bash scripts/gs_lr_lora.sh`
+- **mLoRA**：`bash scripts/gs_lr_mlora.sh`
+- **DeepSeek SFT**：`bash scripts/gs_lr_deepseek_sft.sh`
+
+#### 4.3 查看任务与指标
+
+```bash
+bjobs
+bjobs -d
+cat JOBID.out
+cat JOBID.err
+```
+
+- 分类：`tail -20 train.csv`、`tail -20 test.csv`（或你的 `METRICS_DIR`）
+- SFT：`tail -20 train_sft.csv`、`tail -20 test_sft.csv`（或 `results/sft_grid/某目录/` 下）
+
+#### 4.4 保存结果到本机（与 0.1 / 0.2 一致）
+
+分类（示例）：
+
+```powershell
+cd D:\GitHub_Code\Manifold-Lora
+scp wangxiao@202.121.138.196:~/Manifold-Lora/train.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/test.csv .
+```
+
+SFT 单次任务写在项目根时：
+
+```powershell
+scp wangxiao@202.121.138.196:~/Manifold-Lora/train_sft.csv .
+scp wangxiao@202.121.138.196:~/Manifold-Lora/test_sft.csv .
+```
+
+网格结果按需 `scp` 整个 `results/sft_grid/` 下某一子目录或打包归档后提交到本仓库 `results/`。
+
+---
+
+### 5. 本机直接试跑 SFT（可选，非 bsub）
+
+```bash
+python main_sft.py --trust_remote_code --device_map auto --torch_dtype float16 \
+  --sft_preset testing_alpaca_small --epochs 3 --batch_size 2 --max_length 512 --lr 2e-5
+```
+
+无 GPU 或勿在登录节点长跑时，请只用第 **0.2** 节的 `bsub` 流程。

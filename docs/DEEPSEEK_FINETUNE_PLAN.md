@@ -123,26 +123,32 @@ ds = load_dataset("tatsu-lab/alpaca")["train"].select(range(1000))
 
 ## 4. 实现方案（两种思路）
 
-### 方案 A：在本仓库内增加「SFT 分支」（适合想继续用当前 LoRA/mlora 代码）
+### 方案 A：在本仓库内增加「SFT 分支」（已实现，**不修改** `main.py` / `utils.py` / `models.py`）
 
-思路：**保留现有分类流水线不动**，新增「任务类型」和「数据/模型分支」，专门给 DeepSeek 做 SFT。
+本仓库已用**独立文件**实现方案 A，与 DistilBERT 分类流水线并存：
 
-1. **数据**  
-   - 用 `datasets` 加载例如 `tatsu-lab/alpaca`（或 `databricks-dolly-15k`）。  
-   - 在预处理里：根据 `instruction`、`input`、`output` 拼成一条序列，并生成 **labels**：prompt 部分设为 `-100`（不参与 loss），只对 `output` 对应的 token 算 loss。
+| 文件 | 作用 |
+|------|------|
+| `main_sft.py` | SFT 入口；训练循环结构对齐 `main.py`（autocast、grad_accum、clip、scheduler、AdamW、CSV），指标为 **eval loss / perplexity**（非分类 accuracy）。 |
+| `models_sft.py` | `AutoModelForCausalLM` + Tokenizer 加载。 |
+| `utils_sft.py` | Hub 小指令集加载、Alpaca/Dolly 风格字段、`labels=-100` 掩码 prompt。 |
+| `lora.py` / `mlora.py` | **复用**原 LoRA / mLoRA 注入逻辑（与 DistilBERT 共用实现）。 |
+| `optimizers.py` | **复用** AdamW。 |
 
-2. **模型**  
-   - 对 DeepSeek：用 `AutoModelForCausalLM.from_pretrained(...)`，不再用 `AutoModelForSequenceClassification`。  
-   - 可选：在 `models.py` 里通过 `--task` 或 `--model_type` 区分「classification」和「causal_lm」，按需加载不同 AutoModel。
+**数据预设**（`--sft_preset`）：`testing_alpaca_small`、`alpaca_gpt4_500`、`alpaca_train_500`、`alpaca_train_1k`（见 `utils_sft.SFT_DATASET_PRESETS`）。也可用 `--sft_dataset` / `--sft_split` 自定义 Hub 路径。
 
-3. **训练**  
-   - Forward 用 `input_ids` + `labels`（上面构造的），`model(**batch)` 内部会做 next-token 的 LM loss。  
-   - 评估可先做 **loss**，或抽样生成 + 简单指标（如长度、重复率）；若要和分类一样严谨，可后续加 BLEU/ROUGE 或模型打分。
+**本地 / 服务器单卡示例**：
 
-4. **脚本**  
-   - 可新增 `main_sft.py`（或 `main.py --task sft`），专门读 Alpaca 类数据、加载 CausalLM、接现有 LoRA/mlora，这样 DeepSeek 只走 SFT 分支，不动你现有的 DistilBERT 分类实验。
+```bash
+python main_sft.py --trust_remote_code --device_map auto --torch_dtype float16 \
+  --sft_preset testing_alpaca_small --epochs 3 --batch_size 2 --max_length 512 --lr 2e-5
+```
 
-**推荐起步数据集**：`tatsu-lab/alpaca`（或 `databricks-dolly-15k`），格式简单、文档多、和现有 HF 生态一致。
+**LSF 提交**：`scripts/submit_bsub_sft.sh`（由 `scripts/run_deepseek_sft_bsub.sh` 调 `main_sft.py`）。**学习率网格**：`scripts/gs_lr_deepseek_sft.sh`（结果写入 `results/sft_grid/<preset>_lr_*/train_sft.csv` 与 `test_sft.csv`）。
+
+**与 DistilBERT 对齐的 SSH 全流程**（上传 → `sed` → `bsub` → `scp`）：见仓库根目录 **[README.md](../README.md)** 的 **§0.2** 与 **§4**。
+
+**推荐起步**：先用 `testing_alpaca_small` 或 `alpaca_gpt4_500` 跑通；再上全量 `tatsu-lab/alpaca`（`--sft_dataset tatsu-lab/alpaca --sft_split train[:5000]` 等）。
 
 ---
 
@@ -168,4 +174,4 @@ ds = load_dataset("tatsu-lab/alpaca")["train"].select(range(1000))
   - 若希望继续在本仓库玩 LoRA/mlora：按**方案 A** 加 SFT 分支 + Alpaca 数据 + CausalLM。  
   - 若优先「快速在标准设定下微调 DeepSeek」：用 **方案 B**（LLaMA-Factory / TRL / Unsloth）+ 同一批 Hugging Face 数据集。
 
-如果你确定走方案 A，下一步可以在本仓库里加一个「Alpaca + CausalLM + LoRA」的最小 `main_sft.py` 与对应数据加载（在 `utils.py` 或新文件里），并写清运行命令和 bsub 示例；需要的话我可以按你当前 `main.py` 的结构给一版具体补丁和参数建议。
+方案 A 的代码入口为 **`main_sft.py`**；分类实验仍只用 **`main.py`**，二者互不影响。
