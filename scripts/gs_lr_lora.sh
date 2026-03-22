@@ -7,9 +7,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-# 可改这里扩展/缩小搜索范围（LoRA 第 2 轮 lr 精调）
-# 第一轮结果显示 2e-5、5e-5 表现最好，这一轮围绕 2e-5 做更细网格：
-LR_LIST=(1.5e-5 2e-5 3e-5 4e-5)
+# 可改这里扩展/缩小搜索范围（LoRA 第 3 轮 lr 精调）
+# 前两轮结果显示 3e-5 最优，这一轮在其附近加密：
+LR_LIST=(2.5e-5 3e-5 3.5e-5)
 EPOCHS=20
 LORA_TYPE=default
 LORA_R=8
