@@ -1,4 +1,4 @@
-# utils_sft.py — 小体量指令数据集 + SFT 标签构造（独立于 utils.py 的 GLUE 分类）
+# utils_sft.py — 小体量指令数据集 + SFT 标签构造（独立于根目录 utils.py 的 GLUE 分类）
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,12 +12,11 @@ from datasets import load_dataset
 
 @dataclass
 class SFTDataConfig:
-    """Hub 小指令集预设见 docs/DEEPSEEK_FINETUNE_PLAN.md"""
+    """Hub 小指令集预设见 deepseek/README.md 与 docs/DEEPSEEK_FINETUNE_PLAN.md"""
 
     dataset_id: str = "HuggingFaceH4/testing_alpaca_small"
     dataset_config: Optional[str] = None
     split_train: str = "train"
-    # 若 Hub 无 validation，从 train 划出比例
     val_ratio: float = 0.1
     max_samples: Optional[int] = None
     max_length: int = 512
@@ -25,7 +24,6 @@ class SFTDataConfig:
     seed: int = 42
 
 
-# 预设：名称 -> (dataset_id, config, split 覆盖可选)
 SFT_DATASET_PRESETS: Dict[str, Tuple[str, Optional[str], Optional[str]]] = {
     "testing_alpaca_small": ("HuggingFaceH4/testing_alpaca_small", None, None),
     "alpaca_gpt4_500": ("levulinh/alpaca-gpt4-500", None, None),
@@ -73,10 +71,6 @@ def _encode_sft(
     response: str,
     max_length: int,
 ) -> Dict[str, List[int]]:
-    """
-    将 prompt + response 拼成序列；仅对 response 部分计算 LM loss（prompt 对应 labels=-100）。
-    使用「分别 tokenize 再拼接」避免截断边界与前缀不一致问题。
-    """
     p_ids = tokenizer(prompt, add_special_tokens=True)["input_ids"]
     r_ids = tokenizer(response, add_special_tokens=False)["input_ids"]
     if tokenizer.eos_token_id is not None:
@@ -123,7 +117,6 @@ def build_sft_dataloaders(
         if fmt == "dolly":
             prompt, response = _dolly_prompt_response(example)
         elif fmt == "text_only" and example.get("text"):
-            # 无法拆分 prompt/response 时整段算 loss（弱于标准 SFT）
             full = example["text"].strip()
             mid = len(full) // 2
             prompt, response = full[:mid], full[mid:]

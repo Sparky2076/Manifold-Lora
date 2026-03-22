@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# 勿将根目录临时指标误提交（实验结果请放 results/ 或 deepseek/results/）
+/train.csv
+/test.csv

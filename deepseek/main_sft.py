@@ -1,4 +1,4 @@
-# main_sft.py — DeepSeek / CausalLM 指令微调（SFT），独立入口，不修改 main.py 分类逻辑
+# main_sft.py — DeepSeek / CausalLM 指令微调（SFT）；须在仓库根目录执行: python -m deepseek.main_sft
 from __future__ import annotations
 
 import argparse
@@ -14,9 +14,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 
-from models_sft import CausalLMConfig, load_causal_lm_and_tokenizer
+from deepseek.models_sft import CausalLMConfig, load_causal_lm_and_tokenizer
+from deepseek.utils_sft import SFTDataConfig, SFT_DATASET_PRESETS, build_sft_dataloaders
 from optimizers import AdamWConfig, get_optimizer
-from utils_sft import SFTDataConfig, SFT_DATASET_PRESETS, build_sft_dataloaders
 
 
 def set_seed(seed: int) -> None:
@@ -54,7 +54,6 @@ def evaluate_sft(
             outputs = model(**batch)
             loss = outputs.loss
 
-        # HF CausalLM 的 loss 已是当前 batch 内有效 token 的平均
         loss_sum += loss.item()
         n_batches += 1
         pbar.set_postfix({"loss": f"{loss_sum / max(n_batches, 1):.4f}"})
@@ -78,7 +77,7 @@ def train_one_epoch_sft(
     log_every: int,
     global_step: list,
 ) -> float:
-    """结构与 main.py 的 train_one_epoch 一致：autocast、grad_accum、clip、scheduler、CSV 日志。"""
+    """结构与根目录 main.py 的 train_one_epoch 一致。"""
     model.train()
     running_loss = 0.0
     seen = 0
@@ -159,7 +158,6 @@ def train_sft_loop(
     trainable_params,
     metrics_dir: str,
 ) -> tuple[float, int]:
-    """与 main.py 的 train() 类似：每 epoch 评估、记录 CSV、跟踪最优指标（此处为最低 eval loss）。"""
     os.makedirs(metrics_dir, exist_ok=True)
     train_csv = os.path.join(metrics_dir, "train_sft.csv")
     test_csv = os.path.join(metrics_dir, "test_sft.csv")
@@ -216,14 +214,13 @@ def train_sft_loop(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DeepSeek / CausalLM 指令微调 (SFT)，独立脚本")
+    parser = argparse.ArgumentParser(description="DeepSeek / CausalLM 指令微调 (SFT)")
     parser.add_argument("--model_name", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B")
     parser.add_argument("--trust_remote_code", action="store_true")
 
-    # 数据：Hub 数据集 id，或用 --sft_preset
     parser.add_argument("--sft_dataset", type=str, default="HuggingFaceH4/testing_alpaca_small")
     parser.add_argument("--sft_dataset_config", type=str, default=None)
-    parser.add_argument("--sft_split", type=str, default="train", help='如 train 或 train[:500]')
+    parser.add_argument("--sft_split", type=str, default="train", help="如 train 或 train[:500]")
     parser.add_argument("--sft_preset", type=str, default=None, help=f"可选: {', '.join(SFT_DATASET_PRESETS.keys())}")
     parser.add_argument("--sft_max_samples", type=int, default=None)
     parser.add_argument("--sft_val_ratio", type=float, default=0.1)

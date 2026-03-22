@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 计算节点执行：DeepSeek / CausalLM 指令微调 (main_sft.py)
-# 由 submit_bsub_sft.sh 提交，勿在登录节点直接长跑
+# 计算节点执行：DeepSeek SFT（须在仓库根目录 python -m deepseek.main_sft）
+# 由 deepseek/scripts/submit_bsub_sft.sh 提交
 
 set -euo pipefail
 
@@ -17,20 +17,21 @@ LORA_R="${LORA_R:-8}"
 LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 
-# 小指令集：testing_alpaca_small | alpaca_gpt4_500 | alpaca_train_500 | alpaca_train_1k
 SFT_PRESET="${SFT_PRESET:-testing_alpaca_small}"
 SFT_DATASET="${SFT_DATASET:-}"
 SFT_SPLIT="${SFT_SPLIT:-train}"
 
+# deepseek/scripts -> 仓库根目录为上两级
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR/.."
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_DIR"
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate torch
 
 EXTRA=(--trust_remote_code --device_map auto --torch_dtype float16)
 
-CMD=(python main_sft.py
+CMD=(python -m deepseek.main_sft
   --model_name "$MODEL_NAME"
   "${EXTRA[@]}"
   --epochs "$EPOCHS"

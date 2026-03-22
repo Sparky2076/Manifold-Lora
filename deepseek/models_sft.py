@@ -1,4 +1,4 @@
-# models_sft.py — DeepSeek / 因果 LM 的 SFT 加载（独立于 models.py 的分类加载）
+# models_sft.py — DeepSeek / 因果 LM 的 SFT 加载（独立于根目录 models.py 的分类加载）
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -33,7 +33,7 @@ def _parse_dtype(torch_dtype: Optional[str]):
 def load_causal_lm_and_tokenizer(cfg: CausalLMConfig) -> Tuple[torch.nn.Module, "AutoTokenizer"]:
     """
     加载 HuggingFace CausalLM + Tokenizer，用于指令微调（SFT）。
-    与 models.py 中的 SequenceClassification 路径分离，避免改动原分类逻辑。
+    与根目录 models.py 中的 SequenceClassification 路径分离。
     """
     dtype = _parse_dtype(cfg.torch_dtype)
 

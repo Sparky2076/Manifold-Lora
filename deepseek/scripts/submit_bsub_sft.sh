@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# 提交 DeepSeek SFT 单卡任务（main_sft.py）
-# 用法: cd ~/Manifold-Lora && sed -i 's/\r$//' scripts/*.sh && bash scripts/submit_bsub_sft.sh
+# 提交 DeepSeek SFT 单卡任务
+# 用法: cd ~/Manifold-Lora && sed -i 's/\r$//' deepseek/scripts/*.sh scripts/*.sh && bash deepseek/scripts/submit_bsub_sft.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_DIR"
 
 JOB_NAME="${JOB_NAME:-deepseek_sft}"
 QUEUE="${QUEUE:-gpu}"
 NGPU=1
 MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
-METRICS_DIR="${METRICS_DIR:-$PROJECT_DIR}"
+METRICS_DIR="${METRICS_DIR:-$PROJECT_DIR/deepseek/results}"
 
 export EPOCHS="${EPOCHS:-}"
 export BATCH_SIZE="${BATCH_SIZE:-}"
