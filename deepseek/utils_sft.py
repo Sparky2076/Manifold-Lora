@@ -76,12 +76,29 @@ def _encode_sft(
     if tokenizer.eos_token_id is not None:
         r_ids = r_ids + [tokenizer.eos_token_id]
 
+    # 防止标签全为 -100：至少保留 1 个 response token 参与监督
+    if not r_ids:
+        fallback_id = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.pad_token_id
+        if fallback_id is None:
+            fallback_id = 0
+        r_ids = [fallback_id]
+    # CausalLM 内部会做 shift，至少需要 2 个监督 token 才能产生有效 loss
+    if len(r_ids) == 1:
+        r_ids = r_ids + [r_ids[0]]
+
+    if len(p_ids) + len(r_ids) > max_length:
+        keep_resp = min(len(r_ids), max(1, max_length))
+        keep_prompt = max_length - keep_resp
+        p_ids = p_ids[: max(0, keep_prompt)]
+        r_ids = r_ids[:keep_resp]
+
     input_ids = p_ids + r_ids
     labels = [-100] * len(p_ids) + r_ids
 
+    # 二次保险：若仍超长则按 max_length 截断，但优先保留末尾监督 token
     if len(input_ids) > max_length:
-        input_ids = input_ids[:max_length]
-        labels = labels[:max_length]
+        input_ids = input_ids[-max_length:]
+        labels = labels[-max_length:]
 
     return {"input_ids": input_ids, "labels": labels}
 

@@ -80,8 +80,8 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 ## 2. 默认配置说明（与根 README §2 形式对齐）
 
 - 模型：`deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`（建议服务器改为本地 `snapshots/...` 路径）
-- 数据：默认 `SFT_PRESET=testing_alpaca_small`（Hub 小指令集）
-- 超参：见 `deepseek/scripts/run_deepseek_sft_bsub.sh` 与 `main_sft.py` 中 `argparse` 默认值
+- 数据：脚本默认 `SFT_PRESET=alpaca_train_1k`（`tatsu-lab/alpaca` 前 1000 条）；验证集比例默认 `SFT_VAL_RATIO=0.2`（可用环境变量覆盖）
+- 超参：`run_deepseek_sft_bsub.sh` 默认 `EPOCHS=20`；其余见 `main_sft.py` 中 `argparse`
 - 指标列：
   - `train_sft.csv`：`iteration,train_loss,train_perplexity`
   - `test_sft.csv`：`iteration,eval_loss,eval_perplexity`
@@ -106,8 +106,8 @@ bash deepseek/scripts/gs_lr_deepseek_sft.sh
 
 ```bash
 cd D:\GitHub_Code\Manifold-Lora
-python -m deepseek.main_sft --trust_remote_code --device_map auto --torch_dtype float16 ^
-  --sft_preset testing_alpaca_small --epochs 3 --batch_size 2 --metrics_dir deepseek/results
+python -m deepseek.main_sft --trust_remote_code --device_map auto --torch_dtype float32 ^
+  --sft_preset alpaca_train_1k --sft_val_ratio 0.2 --epochs 20 --batch_size 2 --metrics_dir deepseek/results
 ```
 
 更多背景：**[../docs/DEEPSEEK_FINETUNE_PLAN.md](../docs/DEEPSEEK_FINETUNE_PLAN.md)**

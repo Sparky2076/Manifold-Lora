@@ -37,6 +37,7 @@ def evaluate_sft(
     model.eval()
     loss_sum = 0.0
     n_batches = 0
+    skipped_non_finite = 0
 
     pbar = tqdm(dataloader, desc=desc, dynamic_ncols=True, leave=True)
     for batch in pbar:
@@ -46,6 +47,11 @@ def evaluate_sft(
         else:
             batch = {k: v.to(device) for k, v in batch.items()}
 
+        # CausalLM loss 内部会右移 labels，若 labels[:, 1:] 全为 -100 则该 batch 无有效监督信号
+        if not (batch["labels"][:, 1:] != -100).any():
+            skipped_non_finite += 1
+            continue
+
         with torch.cuda.amp.autocast(
             enabled=(torch_dtype_str in ("float16", "fp16", "bfloat16", "bf16"))
             and torch.cuda.is_available(),
@@ -54,11 +60,19 @@ def evaluate_sft(
             outputs = model(**batch)
             loss = outputs.loss
 
+        if not torch.isfinite(loss):
+            skipped_non_finite += 1
+            continue
+
         loss_sum += loss.item()
         n_batches += 1
         pbar.set_postfix({"loss": f"{loss_sum / max(n_batches, 1):.4f}"})
 
     pbar.close()
+    if skipped_non_finite > 0:
+        print(f"[Warn] eval skipped non-finite batches: {skipped_non_finite}")
+    if n_batches == 0:
+        raise RuntimeError("All eval batches were skipped (no valid supervised tokens after shift).")
     return loss_sum / max(n_batches, 1)
 
 
@@ -82,6 +96,7 @@ def train_one_epoch_sft(
     running_loss = 0.0
     seen = 0
     optimizer.zero_grad(set_to_none=True)
+    skipped_non_finite = 0
 
     pbar = tqdm(
         train_loader,
@@ -96,6 +111,11 @@ def train_one_epoch_sft(
         else:
             batch = {k: v.to(device) for k, v in batch.items()}
 
+        if not (batch["labels"][:, 1:] != -100).any():
+            skipped_non_finite += 1
+            optimizer.zero_grad(set_to_none=True)
+            continue
+
         with torch.cuda.amp.autocast(
             enabled=(args.torch_dtype in ("float16", "fp16", "bfloat16", "bf16"))
             and torch.cuda.is_available(),
@@ -103,6 +123,11 @@ def train_one_epoch_sft(
         ):
             outputs = model(**batch)
             loss = outputs.loss / args.grad_accum_steps
+
+        if not torch.isfinite(loss):
+            skipped_non_finite += 1
+            optimizer.zero_grad(set_to_none=True)
+            continue
 
         if scaler.is_enabled():
             scaler.scale(loss).backward()
@@ -142,6 +167,10 @@ def train_one_epoch_sft(
         )
 
     pbar.close()
+    if skipped_non_finite > 0:
+        print(f"[Warn] train skipped non-finite batches: {skipped_non_finite}")
+    if seen == 0:
+        raise RuntimeError("All train batches were skipped (no valid supervised tokens after shift).")
     return running_loss / max(seen, 1)
 
 
@@ -223,7 +252,12 @@ def main():
     parser.add_argument("--sft_split", type=str, default="train", help="如 train 或 train[:500]")
     parser.add_argument("--sft_preset", type=str, default=None, help=f"可选: {', '.join(SFT_DATASET_PRESETS.keys())}")
     parser.add_argument("--sft_max_samples", type=int, default=None)
-    parser.add_argument("--sft_val_ratio", type=float, default=0.1)
+    parser.add_argument(
+        "--sft_val_ratio",
+        type=float,
+        default=0.2,
+        help="从训练 split 中划出验证集的比例（如 0.2 ≈ 20%% 样本做 eval）",
+    )
 
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch_size", type=int, default=2)

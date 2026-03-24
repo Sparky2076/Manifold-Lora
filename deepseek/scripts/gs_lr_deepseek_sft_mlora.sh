@@ -1,31 +1,37 @@
 #!/usr/bin/env bash
-# DeepSeek SFT 学习率网格；结果写入 deepseek/results/sft_grid/（与 results/tuning_logs 形式对应）
-# 服务器: cd ~/Manifold-Lora && sed -i 's/\r$//' deepseek/scripts/*.sh && bash deepseek/scripts/gs_lr_deepseek_sft.sh
+# DeepSeek SFT + mLoRA 学习率网格；结果写入 deepseek/results/sft_grid/
+# 服务器:
+#   cd ~/Manifold-Lora
+#   sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
+#   bash deepseek/scripts/gs_lr_deepseek_sft_mlora.sh
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-LR_LIST=(1e-5 2e-5 5e-5)
+# mLoRA 常用更高学习率区间（可通过外部环境变量覆盖）
+LR_LIST=(${LR_LIST:-1e-5 2e-5 5e-5})
 EPOCHS="${EPOCHS:-20}"
 BATCH_SIZE="${BATCH_SIZE:-2}"
 GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-8}"
 MAX_LENGTH="${MAX_LENGTH:-512}"
-# tatsu-lab/alpaca 前 1000 条；验证集约 20%（可用 SFT_VAL_RATIO 覆盖）
+
+# 默认更大子集与更大验证集
 SFT_PRESET="${SFT_PRESET:-alpaca_train_1k}"
 SFT_VAL_RATIO="${SFT_VAL_RATIO:-0.2}"
-LORA_TYPE="${LORA_TYPE:-default}"
+
+LORA_TYPE="mlora"
 LORA_R="${LORA_R:-8}"
 LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 
 for LR in "${LR_LIST[@]}"; do
   SAFE_LR=$(echo "$LR" | sed 's/\./p/g; s/-/_/g')
-  OUT_DIR="$PROJECT_DIR/deepseek/results/sft_grid/${SFT_PRESET}_lr_${SAFE_LR}"
+  OUT_DIR="$PROJECT_DIR/deepseek/results/sft_grid/${SFT_PRESET}_mlora_lr_${SAFE_LR}"
   mkdir -p "$OUT_DIR"
-  echo "==== SFT submit LR=$LR -> $OUT_DIR ===="
-  JOB_NAME="sft_${SFT_PRESET}_lr_${SAFE_LR}" \
+  echo "==== SFT mLoRA submit LR=$LR -> $OUT_DIR ===="
+  JOB_NAME="sft_${SFT_PRESET}_mlora_lr_${SAFE_LR}" \
     EPOCHS="$EPOCHS" \
     BATCH_SIZE="$BATCH_SIZE" \
     GRAD_ACCUM_STEPS="$GRAD_ACCUM_STEPS" \
