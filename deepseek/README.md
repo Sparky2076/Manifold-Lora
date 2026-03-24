@@ -98,6 +98,21 @@ bash deepseek/scripts/gs_lr_deepseek_sft.sh
 
 每个 `lr` 一个 job，输出目录：`deepseek/results/sft_grid/<preset>_lr_<安全化lr>/`。
 
+第二轮（v2）建议：
+
+```bash
+cd ~/Manifold-Lora
+sed -i 's/\r$//' deepseek/scripts/*.sh
+
+# LoRA v2（围绕 2e-5 细化）
+bash deepseek/scripts/gs_lr_deepseek_sft_v2.sh
+
+# mLoRA v2（向更高学习率继续探索）
+bash deepseek/scripts/gs_lr_deepseek_sft_mlora_v2.sh
+```
+
+v2 输出目录统一写到 `deepseek/results/sft_grid_v2/`，便于与第一轮分开对比。
+
 ---
 
 ## 4. 本机试跑（非 bsub）
