@@ -8,13 +8,18 @@
 
 ## Job 提交记录
 
-| JobID | lr | 状态 | best eval loss | 备注 |
-|------:|---:|------|----------------|------|
-| 313849 | `1.5e-5` | RUN |  | 运行中，结果待回填 |
-| 313850 | `2e-5` | RUN |  | 运行中，结果待回填 |
-| 313851 | `2.5e-5` | RUN |  | 运行中，结果待回填 |
+| JobID | lr | 状态 | best eval loss | best epoch | best eval ppl | 备注 |
+|------:|---:|------|----------------|-----------:|--------------:|------|
+| 313849 | `1.5e-5` | DONE | 1.6294 | 12 | 5.10 | `EPOCHS=12` 收敛稳定 |
+| 313850 | `2e-5` | DONE | 1.6198 | 12 | 5.05 | 相比 `1.5e-5` 更优 |
+| 313851 | `2.5e-5` | DONE | 1.6172 | 9 | 5.04 | 本轮 LoRA 最优；后续 epoch 略回升 |
 
 ## 回填说明
 
 - 作业结束后，补充每个 Job 的 `best eval loss`、最佳 epoch 与简要结论。
 - 指标路径：`deepseek/results/sft_grid_v2/<preset>_lora_v2_lr_*/train_sft.csv`、`test_sft.csv`。
+
+## 结论（本轮）
+
+- **最优**：LoRA `lr=2.5e-5`（Job `313851`），best eval loss **1.6172**（epoch **9**，ppl **5.04**）。
+- **次优**：LoRA `lr=2e-5`（Job `313850`），best eval loss **1.6198**（epoch **12**，ppl **5.05**）。
