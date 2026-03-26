@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from torch.utils.data import DataLoader
-from datasets import load_dataset
+from datasets import concatenate_datasets, interleave_datasets, load_dataset
 
 
 @dataclass
@@ -29,6 +29,8 @@ SFT_DATASET_PRESETS: Dict[str, Tuple[str, Optional[str], Optional[str]]] = {
     "alpaca_gpt4_500": ("levulinh/alpaca-gpt4-500", None, None),
     "alpaca_train_500": ("tatsu-lab/alpaca", None, "train[:500]"),
     "alpaca_train_1k": ("tatsu-lab/alpaca", None, "train[:1000]"),
+    # 大集混合：ShareGPT 对话 + 指令覆盖 + 中文补充（按 build_sft_dataloaders 内的 mix 逻辑构建）
+    "mix_chat_real_300k": ("__mix_chat_real_300k__", None, None),
 }
 
 
@@ -54,8 +56,61 @@ def _dolly_prompt_response(example: Dict[str, Any]) -> Tuple[str, str]:
     return prompt, resp
 
 
+def _sharegpt_prompt_response(example: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    ShareGPT 风格：example["conversations"] = [{"from": "system|human|gpt", "value": "..."}...]
+    这里取“最后一个 gpt 回复”为监督目标，prompt 包含其之前的全部上下文。
+    """
+
+    conv = example.get("conversations") or []
+    if not isinstance(conv, list) or len(conv) == 0:
+        return "### Response:\n", ""
+
+    turns: List[Tuple[str, str]] = []
+    for t in conv:
+        if not isinstance(t, dict):
+            continue
+        role = (t.get("from") or t.get("role") or "").strip().lower()
+        val = (t.get("value") or t.get("content") or "").strip()
+        if not val and role != "system":
+            continue
+        if role in ("system",):
+            turns.append(("system", val))
+        elif role in ("human", "user"):
+            turns.append(("user", val))
+        elif role in ("gpt", "assistant"):
+            turns.append(("assistant", val))
+
+    # 找最后一个 assistant turn
+    last_assistant_idx = -1
+    for i in range(len(turns) - 1, -1, -1):
+        if turns[i][0] == "assistant":
+            last_assistant_idx = i
+            break
+    if last_assistant_idx == -1:
+        return "### Response:\n", ""
+
+    response = turns[last_assistant_idx][1]
+    ctx = turns[:last_assistant_idx]
+    lines: List[str] = []
+    for role, text in ctx:
+        if role == "system":
+            if text:
+                lines.append(f"### System:\n{text}\n")
+        elif role == "user":
+            lines.append(f"### User:\n{text}\n")
+        else:
+            lines.append(f"### Assistant:\n{text}\n")
+
+    lines.append("### Assistant:\n")
+    prompt = "\n".join(lines)
+    return prompt, response
+
+
 def _detect_format(ds_sample: Dict[str, Any]) -> str:
     keys = set(ds_sample.keys())
+    if "conversations" in keys and isinstance(ds_sample.get("conversations"), list):
+        return "sharegpt"
     if "instruction" in keys and ("output" in keys or "response" in keys):
         return "alpaca_like"
     if "instruction" in keys and "context" in keys and "response" in keys:
@@ -108,6 +163,35 @@ def build_sft_dataloaders(
     cfg: SFTDataConfig,
     batch_size: int,
 ) -> Tuple[DataLoader, DataLoader]:
+    # 内置 mix preset：拼一个 300k 规模的“聊天+指令+中文”混合数据
+    if cfg.dataset_id == "__mix_chat_real_300k__":
+        # 比例：OpenHermes 50%（指令覆盖）+ Nectar-ShareGPT 30%（更像真实 chat）+ COIG 20%（中文补充）
+        # 注意：COIG 官方建议按子文件下载；此处先用 HF dataset 入口，若环境无法拉取可后续替换为本地数据集。
+        hermes = load_dataset("teknium/OpenHermes-2.5", split="train", trust_remote_code=True)
+        nectar = load_dataset("PhilipMay/Nectar-ShareGPT-clean", split="train", trust_remote_code=True)
+        coig = load_dataset("BAAI/COIG", split="train", trust_remote_code=True)
+
+        n_total = 300_000
+        n_hermes = int(n_total * 0.50)
+        n_nectar = int(n_total * 0.30)
+        n_coig = n_total - n_hermes - n_nectar
+
+        hermes = hermes.shuffle(seed=cfg.seed).select(range(min(n_hermes, len(hermes))))
+        nectar = nectar.shuffle(seed=cfg.seed).select(range(min(n_nectar, len(nectar))))
+        coig = coig.shuffle(seed=cfg.seed).select(range(min(n_coig, len(coig))))
+
+        # interleave 让训练 batch 更像真实混合分布
+        ds = interleave_datasets(
+            [hermes, nectar, coig],
+            probabilities=[0.50, 0.30, 0.20],
+            seed=cfg.seed,
+            stopping_strategy="all_exhausted",
+        )
+
+        # 保证恰好 n_total（若某个子集不足，会少于 n_total；这里截断到可用长度）
+        if len(ds) > n_total:
+            ds = ds.select(range(n_total))
+    else:
     split = cfg.split_train
     if cfg.dataset_config:
         ds = load_dataset(
@@ -131,7 +215,9 @@ def build_sft_dataloaders(
     fmt = _detect_format(sample)
 
     def preprocess(example: Dict[str, Any]) -> Dict[str, Any]:
-        if fmt == "dolly":
+        if fmt == "sharegpt":
+            prompt, response = _sharegpt_prompt_response(example)
+        elif fmt == "dolly":
             prompt, response = _dolly_prompt_response(example)
         elif fmt == "text_only" and example.get("text"):
             full = example["text"].strip()

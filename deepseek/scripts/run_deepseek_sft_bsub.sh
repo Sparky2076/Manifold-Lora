@@ -33,6 +33,7 @@ conda activate torch
 
 # 不支持 bf16 的 GPU 用 float32；想加速可改为 float16（需 GPU 支持且稳定）
 TORCH_DTYPE="${TORCH_DTYPE:-float32}"
+MAX_STEPS="${MAX_STEPS:-}"
 
 if [[ -n "${SFT_DATASET}" ]]; then
   exec python -m deepseek.main_sft \
@@ -41,6 +42,7 @@ if [[ -n "${SFT_DATASET}" ]]; then
     --device_map auto \
     --torch_dtype "$TORCH_DTYPE" \
     --epochs "$EPOCHS" \
+    ${MAX_STEPS:+--max_steps "$MAX_STEPS"} \
     --batch_size "$BATCH_SIZE" \
     --max_length "$MAX_LENGTH" \
     --grad_accum_steps "$GRAD_ACCUM_STEPS" \
@@ -63,6 +65,7 @@ else
     --device_map auto \
     --torch_dtype "$TORCH_DTYPE" \
     --epochs "$EPOCHS" \
+    ${MAX_STEPS:+--max_steps "$MAX_STEPS"} \
     --batch_size "$BATCH_SIZE" \
     --max_length "$MAX_LENGTH" \
     --grad_accum_steps "$GRAD_ACCUM_STEPS" \

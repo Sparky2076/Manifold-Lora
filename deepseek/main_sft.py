@@ -239,6 +239,11 @@ def train_sft_loop(
             f"best_eval_loss={best_loss:.4f} (best epoch: {best_epoch})"
         )
 
+        # 用 max_steps 控制训练预算：达到后提前结束（更适合大数据集复验）
+        if args.max_steps is not None and args.max_steps > 0 and global_step[0] >= args.max_steps:
+            print(f"[Stop] Reached max_steps={args.max_steps} at epoch {epoch}.")
+            break
+
     return best_loss, best_epoch
 
 
@@ -260,6 +265,12 @@ def main():
     )
 
     parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument(
+        "--max_steps",
+        type=int,
+        default=None,
+        help="可选：按 optimizer step 数限制训练预算（优先于 epochs 用于提前结束训练）",
+    )
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--max_length", type=int, default=512)
     parser.add_argument("--grad_accum_steps", type=int, default=8)
@@ -371,6 +382,8 @@ def main():
 
     steps_per_epoch = math.ceil(len(train_loader) / args.grad_accum_steps)
     total_steps = max(1, steps_per_epoch * args.epochs)
+    if args.max_steps is not None and args.max_steps > 0:
+        total_steps = min(total_steps, args.max_steps)
     warmup_steps = int(total_steps * args.warmup_ratio)
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
