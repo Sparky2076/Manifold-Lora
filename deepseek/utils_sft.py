@@ -197,6 +197,8 @@ def build_sft_dataloaders(
             [
                 (hermes_primary, None, "train"),
                 ("Open-Orca/SlimOrca", None, "train"),
+                ("tatsu-lab/alpaca", None, "train"),
+                ("HuggingFaceH4/testing_alpaca_small", None, "train"),
             ],
             "hermes_like",
         )
@@ -204,6 +206,8 @@ def build_sft_dataloaders(
             [
                 (nectar_primary, None, "train"),
                 ("berkeley-nest/Nectar", None, "train"),
+                ("tatsu-lab/alpaca", None, "train"),
+                ("HuggingFaceH4/testing_alpaca_small", None, "train"),
             ],
             "nectar_like",
         )
@@ -211,6 +215,8 @@ def build_sft_dataloaders(
             [
                 (coig_primary, None, "train"),
                 ("BelleGroup/train_1M_CN", None, "train"),
+                ("tatsu-lab/alpaca", None, "train"),
+                ("HuggingFaceH4/testing_alpaca_small", None, "train"),
             ],
             "zh_like",
         )
@@ -233,6 +239,8 @@ def build_sft_dataloaders(
         )
 
         # 保证恰好 n_total（若某个子集不足，会少于 n_total；这里截断到可用长度）
+        if len(ds) < n_total:
+            print(f"[Warn][SFT][mix] effective mixed size={len(ds)} < target={n_total} (source availability limited)")
         if len(ds) > n_total:
             ds = ds.select(range(n_total))
     else:
