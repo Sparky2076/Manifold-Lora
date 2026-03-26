@@ -192,20 +192,20 @@ def build_sft_dataloaders(
         if len(ds) > n_total:
             ds = ds.select(range(n_total))
     else:
-    split = cfg.split_train
-    if cfg.dataset_config:
-        ds = load_dataset(
-            cfg.dataset_id,
-            cfg.dataset_config,
-            split=split,
-            trust_remote_code=True,
-        )
-    else:
-        ds = load_dataset(
-            cfg.dataset_id,
-            split=split,
-            trust_remote_code=True,
-        )
+        split = cfg.split_train
+        if cfg.dataset_config:
+            ds = load_dataset(
+                cfg.dataset_id,
+                cfg.dataset_config,
+                split=split,
+                trust_remote_code=True,
+            )
+        else:
+            ds = load_dataset(
+                cfg.dataset_id,
+                split=split,
+                trust_remote_code=True,
+            )
 
     if cfg.max_samples is not None and cfg.max_samples > 0:
         n = min(cfg.max_samples, len(ds))
