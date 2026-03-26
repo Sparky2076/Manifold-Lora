@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import ceil
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
@@ -163,13 +164,56 @@ def build_sft_dataloaders(
     cfg: SFTDataConfig,
     batch_size: int,
 ) -> Tuple[DataLoader, DataLoader]:
+    def _try_load_first_available(
+        candidates: List[Tuple[str, Optional[str], str]],
+        tag: str,
+    ):
+        last_err = None
+        for did, dcfg, dsplit in candidates:
+            if not did:
+                continue
+            try:
+                if dcfg:
+                    ds_local = load_dataset(did, dcfg, split=dsplit, trust_remote_code=True)
+                else:
+                    ds_local = load_dataset(did, split=dsplit, trust_remote_code=True)
+                print(f"[SFT][mix] {tag} source: {did} split={dsplit}")
+                return ds_local
+            except Exception as e:  # pragma: no cover - runtime fallback path
+                last_err = e
+                print(f"[Warn][SFT][mix] failed loading {tag} source={did}: {type(e).__name__}: {e}")
+                continue
+        raise RuntimeError(f"No available dataset source for {tag}. last_error={last_err}")
+
     # 内置 mix preset：拼一个 300k 规模的“聊天+指令+中文”混合数据
     if cfg.dataset_id == "__mix_chat_real_300k__":
         # 比例：OpenHermes 50%（指令覆盖）+ Nectar-ShareGPT 30%（更像真实 chat）+ COIG 20%（中文补充）
-        # 注意：COIG 官方建议按子文件下载；此处先用 HF dataset 入口，若环境无法拉取可后续替换为本地数据集。
-        hermes = load_dataset("teknium/OpenHermes-2.5", split="train", trust_remote_code=True)
-        nectar = load_dataset("PhilipMay/Nectar-ShareGPT-clean", split="train", trust_remote_code=True)
-        coig = load_dataset("BAAI/COIG", split="train", trust_remote_code=True)
+        # 支持环境变量覆盖主源；并内置候选回退，避免单一 HF 仓库不可达时直接失败。
+        hermes_primary = os.environ.get("SFT_MIX_HERMES_DATASET", "teknium/OpenHermes-2.5")
+        nectar_primary = os.environ.get("SFT_MIX_NECTAR_DATASET", "PhilipMay/Nectar-ShareGPT-clean")
+        coig_primary = os.environ.get("SFT_MIX_COIG_DATASET", "BAAI/COIG")
+
+        hermes = _try_load_first_available(
+            [
+                (hermes_primary, None, "train"),
+                ("Open-Orca/SlimOrca", None, "train"),
+            ],
+            "hermes_like",
+        )
+        nectar = _try_load_first_available(
+            [
+                (nectar_primary, None, "train"),
+                ("berkeley-nest/Nectar", None, "train"),
+            ],
+            "nectar_like",
+        )
+        coig = _try_load_first_available(
+            [
+                (coig_primary, None, "train"),
+                ("BelleGroup/train_1M_CN", None, "train"),
+            ],
+            "zh_like",
+        )
 
         n_total = 300_000
         n_hermes = int(n_total * 0.50)
