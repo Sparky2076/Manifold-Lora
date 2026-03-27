@@ -230,13 +230,30 @@ def build_sft_dataloaders(
         nectar = nectar.shuffle(seed=cfg.seed).select(range(min(n_nectar, len(nectar))))
         coig = coig.shuffle(seed=cfg.seed).select(range(min(n_coig, len(coig))))
 
-        # interleave 让训练 batch 更像真实混合分布
-        ds = interleave_datasets(
-            [hermes, nectar, coig],
-            probabilities=[0.50, 0.30, 0.20],
-            seed=cfg.seed,
-            stopping_strategy="all_exhausted",
-        )
+        # 先对每个子集单独编码成统一 schema（input_ids/labels），再拼接，避免原始 features 不可对齐
+        def _encode_dataset(ds_local):
+            local_fmt = _detect_format(ds_local[0])
+
+            def _preprocess_local(example: Dict[str, Any]) -> Dict[str, Any]:
+                if local_fmt == "sharegpt":
+                    prompt, response = _sharegpt_prompt_response(example)
+                elif local_fmt == "dolly":
+                    prompt, response = _dolly_prompt_response(example)
+                elif local_fmt == "text_only" and example.get("text"):
+                    full = example["text"].strip()
+                    mid = len(full) // 2
+                    prompt, response = full[:mid], full[mid:]
+                else:
+                    prompt, response = _alpaca_prompt_response(example)
+                return _encode_sft(tokenizer, prompt, response, cfg.max_length)
+
+            return ds_local.map(_preprocess_local, remove_columns=ds_local.column_names, desc="SFT tokenize (mix)")
+
+        hermes = _encode_dataset(hermes)
+        nectar = _encode_dataset(nectar)
+        coig = _encode_dataset(coig)
+
+        ds = concatenate_datasets([hermes, nectar, coig]).shuffle(seed=cfg.seed)
 
         # 保证恰好 n_total（若某个子集不足，会少于 n_total；这里截断到可用长度）
         if len(ds) < n_total:
@@ -263,24 +280,25 @@ def build_sft_dataloaders(
         n = min(cfg.max_samples, len(ds))
         ds = ds.select(range(n))
 
-    sample = ds[0]
-    fmt = _detect_format(sample)
+    if "input_ids" not in ds.column_names or "labels" not in ds.column_names:
+        sample = ds[0]
+        fmt = _detect_format(sample)
 
-    def preprocess(example: Dict[str, Any]) -> Dict[str, Any]:
-        if fmt == "sharegpt":
-            prompt, response = _sharegpt_prompt_response(example)
-        elif fmt == "dolly":
-            prompt, response = _dolly_prompt_response(example)
-        elif fmt == "text_only" and example.get("text"):
-            full = example["text"].strip()
-            mid = len(full) // 2
-            prompt, response = full[:mid], full[mid:]
-        else:
-            prompt, response = _alpaca_prompt_response(example)
-        enc = _encode_sft(tokenizer, prompt, response, cfg.max_length)
-        return enc
+        def preprocess(example: Dict[str, Any]) -> Dict[str, Any]:
+            if fmt == "sharegpt":
+                prompt, response = _sharegpt_prompt_response(example)
+            elif fmt == "dolly":
+                prompt, response = _dolly_prompt_response(example)
+            elif fmt == "text_only" and example.get("text"):
+                full = example["text"].strip()
+                mid = len(full) // 2
+                prompt, response = full[:mid], full[mid:]
+            else:
+                prompt, response = _alpaca_prompt_response(example)
+            enc = _encode_sft(tokenizer, prompt, response, cfg.max_length)
+            return enc
 
-    ds = ds.map(preprocess, remove_columns=ds.column_names, desc="SFT tokenize")
+        ds = ds.map(preprocess, remove_columns=ds.column_names, desc="SFT tokenize")
 
     n = len(ds)
     if n <= 1:
