@@ -119,7 +119,8 @@ v2 输出目录统一写到 `deepseek/results/sft_grid_v2/`，便于与第一轮
 
 本仓库 SFT 使用 **PyTorch DDP**（`torchrun`，每进程绑定一卡）。**张量并行**（Megatron / DeepSpeed TP 切分单层）未实现，若需要需另行集成。
 
-- 环境变量：`NPROC_PER_NODE`（或 `submit_bsub_sft.sh` 里用 `NGPU` 与 `NPROC_PER_NODE` 对齐，默认 `NPROC_PER_NODE=$NGPU`）
+- 环境变量：`NPROC_PER_NODE`（与 `NGPU`、`torchrun` 一致；`submit_bsub_sft.sh` 默认 `NPROC_PER_NODE=$NGPU`）
+- LSF：`bsub -n` 默认 **等于 `NGPU`**（四卡即 `-n 4`）。若集群要求更多 CPU 槽，可设 **`NCORES`**（例如 `NGPU=4 NCORES=8`）
 - `run_deepseek_sft_bsub.sh`：当 `NPROC_PER_NODE>1` 时自动 `torchrun --standalone --nproc_per_node=...`，`main_sft.py` 内会 `init_process_group`、使用 `DistributedSampler`，梯度累积步配合 `no_sync`。
 - 大集网格 `gs_lr_deepseek_sft_big_v1.sh` / `gs_lr_deepseek_sft_mlora_big_v1.sh` 默认 **`NGPU=2`**（可按集群改成 4、8 等）。
 
