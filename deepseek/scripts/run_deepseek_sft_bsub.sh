@@ -34,6 +34,12 @@ conda activate torch
 # 不支持 bf16 的 GPU 用 float32；想加速可改为 float16（需 GPU 支持且稳定）
 TORCH_DTYPE="${TORCH_DTYPE:-float32}"
 MAX_STEPS="${MAX_STEPS:-}"
+GRADIENT_CHECKPOINTING="${GRADIENT_CHECKPOINTING:-0}"
+
+GC_FLAG=()
+if [[ "${GRADIENT_CHECKPOINTING}" == "1" ]]; then
+  GC_FLAG+=(--gradient_checkpointing)
+fi
 
 if [[ -n "${SFT_DATASET}" ]]; then
   exec python -m deepseek.main_sft \
@@ -57,7 +63,8 @@ if [[ -n "${SFT_DATASET}" ]]; then
     --metrics_dir "$METRICS_DIR" \
     --sft_val_ratio "$SFT_VAL_RATIO" \
     --sft_dataset "$SFT_DATASET" \
-    --sft_split "$SFT_SPLIT"
+    --sft_split "$SFT_SPLIT" \
+    "${GC_FLAG[@]}"
 else
   exec python -m deepseek.main_sft \
     --model_name "$MODEL_NAME" \
@@ -79,5 +86,6 @@ else
     --log_every 5 \
     --metrics_dir "$METRICS_DIR" \
     --sft_val_ratio "$SFT_VAL_RATIO" \
-    --sft_preset "$SFT_PRESET"
+    --sft_preset "$SFT_PRESET" \
+    "${GC_FLAG[@]}"
 fi

@@ -160,6 +160,13 @@ def train_one_epoch_sft(
                 with open(train_csv_path, "a") as f:
                     f.write(f"{global_step[0]},{avg_loss:.4f},{ppl:.4f}\n")
 
+            # 大数据 + max_steps：不得在整 epoch 上遍历全部样本，否则极慢且易 OOM
+            if args.max_steps is not None and args.max_steps > 0 and global_step[0] >= args.max_steps:
+                pbar.close()
+                if skipped_non_finite > 0:
+                    print(f"[Warn] train skipped non-finite batches: {skipped_non_finite}")
+                return running_loss / max(seen, 1)
+
         avg_loss = running_loss / max(seen, 1)
         ppl = min(math.exp(min(avg_loss, 20.0)), 1e9)
         pbar.set_postfix(
@@ -307,6 +314,11 @@ def main():
     parser.add_argument("--log_every", type=int, default=10)
     parser.add_argument("--num_workers", type=int, default=0)
     parser.add_argument("--metrics_dir", type=str, default=".")
+    parser.add_argument(
+        "--gradient_checkpointing",
+        action="store_true",
+        help="开启 HF gradient checkpointing，显著降低显存（略慢）",
+    )
 
     args = parser.parse_args()
 
@@ -372,6 +384,13 @@ def main():
     )
     apply_lora(device, model, lora_cfg, verbose=True)
     mark_only_lora_as_trainable(model)
+
+    if args.gradient_checkpointing:
+        if hasattr(model, "gradient_checkpointing_enable"):
+            model.gradient_checkpointing_enable()
+            print("[SFT] gradient_checkpointing enabled")
+        if hasattr(model, "config") and hasattr(model.config, "use_cache"):
+            model.config.use_cache = False
 
     trainable = lora_trainable_parameters(model)
     n_trainable = sum(p.numel() for p in trainable)
