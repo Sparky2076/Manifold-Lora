@@ -196,7 +196,9 @@ def build_sft_dataloaders(
         # 支持环境变量覆盖主源；并内置候选回退，避免单一 HF 仓库不可达时直接失败。
         hermes_primary = os.environ.get("SFT_MIX_HERMES_DATASET", "teknium/OpenHermes-2.5")
         nectar_primary = os.environ.get("SFT_MIX_NECTAR_DATASET", "PhilipMay/Nectar-ShareGPT-clean")
-        coig_primary = os.environ.get("SFT_MIX_COIG_DATASET", "BAAI/COIG")
+        # BAAI/COIG 在部分镜像下有历史文件缺失问题，默认改为更稳定可用的中文数据源；
+        # 如需强制使用 COIG，可通过 SFT_MIX_COIG_DATASET 覆盖。
+        coig_primary = os.environ.get("SFT_MIX_COIG_DATASET", "BelleGroup/train_1M_CN")
 
         hermes = _try_load_first_available(
             [
