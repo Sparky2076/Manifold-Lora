@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from datasets import concatenate_datasets, interleave_datasets, load_dataset
 
 
@@ -163,6 +164,10 @@ def build_sft_dataloaders(
     tokenizer,
     cfg: SFTDataConfig,
     batch_size: int,
+    *,
+    ddp: bool = False,
+    world_size: int = 1,
+    rank: int = 0,
 ) -> Tuple[DataLoader, DataLoader]:
     def _try_load_first_available(
         candidates: List[Tuple[str, Optional[str], str]],
@@ -330,20 +335,53 @@ def build_sft_dataloaders(
             "labels": torch.tensor(labels, dtype=torch.long),
         }
 
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=cfg.num_workers,
-        collate_fn=collate,
-        pin_memory=torch.cuda.is_available(),
-    )
-    eval_loader = DataLoader(
-        eval_ds,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=cfg.num_workers,
-        collate_fn=collate,
-        pin_memory=torch.cuda.is_available(),
-    )
+    if ddp and world_size > 1:
+        train_sampler = DistributedSampler(
+            train_ds,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=True,
+            seed=cfg.seed,
+        )
+        eval_sampler = DistributedSampler(
+            eval_ds,
+            num_replicas=world_size,
+            rank=rank,
+            shuffle=False,
+        )
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=batch_size,
+            sampler=train_sampler,
+            shuffle=False,
+            num_workers=cfg.num_workers,
+            collate_fn=collate,
+            pin_memory=torch.cuda.is_available(),
+        )
+        eval_loader = DataLoader(
+            eval_ds,
+            batch_size=batch_size,
+            sampler=eval_sampler,
+            shuffle=False,
+            num_workers=cfg.num_workers,
+            collate_fn=collate,
+            pin_memory=torch.cuda.is_available(),
+        )
+    else:
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=cfg.num_workers,
+            collate_fn=collate,
+            pin_memory=torch.cuda.is_available(),
+        )
+        eval_loader = DataLoader(
+            eval_ds,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=cfg.num_workers,
+            collate_fn=collate,
+            pin_memory=torch.cuda.is_available(),
+        )
     return train_loader, eval_loader

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import math
 import os
 
@@ -9,7 +10,9 @@ os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 import torch
+import torch.distributed as dist
 import torch.nn as nn
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
@@ -32,14 +35,17 @@ def evaluate_sft(
     use_device_map: bool,
     torch_dtype_str: str | None,
     desc: str = "[Eval]",
+    *,
+    use_ddp: bool = False,
+    show_pbar: bool = True,
 ) -> float:
-    """返回平均 LM loss（越低越好）。"""
+    """返回平均 LM loss（越低越好）。DDP 下为全局平均（all-reduce 按 batch 数加权）。"""
     model.eval()
     loss_sum = 0.0
     n_batches = 0
     skipped_non_finite = 0
 
-    pbar = tqdm(dataloader, desc=desc, dynamic_ncols=True, leave=True)
+    pbar = tqdm(dataloader, desc=desc, dynamic_ncols=True, leave=True, disable=not show_pbar)
     for batch in pbar:
         if use_device_map:
             model_device = next(model.parameters()).device
@@ -69,8 +75,15 @@ def evaluate_sft(
         pbar.set_postfix({"loss": f"{loss_sum / max(n_batches, 1):.4f}"})
 
     pbar.close()
-    if skipped_non_finite > 0:
+    if skipped_non_finite > 0 and show_pbar:
         print(f"[Warn] eval skipped non-finite batches: {skipped_non_finite}")
+    if use_ddp and dist.is_initialized():
+        t = torch.tensor([loss_sum, float(n_batches)], device=device, dtype=torch.float64)
+        dist.all_reduce(t, op=dist.ReduceOp.SUM)
+        total_n = int(t[1].item())
+        if total_n == 0:
+            raise RuntimeError("All eval batches were skipped across ranks (no valid supervised tokens after shift).")
+        return t[0].item() / total_n
     if n_batches == 0:
         raise RuntimeError("All eval batches were skipped (no valid supervised tokens after shift).")
     return loss_sum / max(n_batches, 1)
@@ -98,11 +111,17 @@ def train_one_epoch_sft(
     optimizer.zero_grad(set_to_none=True)
     skipped_non_finite = 0
 
+    sampler = getattr(train_loader, "sampler", None)
+    if sampler is not None and hasattr(sampler, "set_epoch"):
+        sampler.set_epoch(epoch)
+
+    show_pbar = getattr(args, "_show_pbar", True)
     pbar = tqdm(
         train_loader,
         desc=f"[SFT Train][Epoch {epoch}/{args.epochs}]",
         dynamic_ncols=True,
         leave=True,
+        disable=not show_pbar,
     )
     for step, batch in enumerate(pbar, start=1):
         if use_device_map:
@@ -129,16 +148,19 @@ def train_one_epoch_sft(
             optimizer.zero_grad(set_to_none=True)
             continue
 
-        if scaler.is_enabled():
-            scaler.scale(loss).backward()
-        else:
-            loss.backward()
+        opt_step = step % args.grad_accum_steps == 0
+        sync_ctx = model.no_sync() if hasattr(model, "no_sync") and not opt_step else contextlib.nullcontext()
+        with sync_ctx:
+            if scaler.is_enabled():
+                scaler.scale(loss).backward()
+            else:
+                loss.backward()
 
         bs = batch["labels"].size(0)
         running_loss += loss.item() * args.grad_accum_steps * bs
         seen += bs
 
-        if step % args.grad_accum_steps == 0:
+        if opt_step:
             if args.max_grad_norm and args.max_grad_norm > 0:
                 if scaler.is_enabled():
                     scaler.unscale_(optimizer)
@@ -163,7 +185,7 @@ def train_one_epoch_sft(
             # 大数据 + max_steps：不得在整 epoch 上遍历全部样本，否则极慢且易 OOM
             if args.max_steps is not None and args.max_steps > 0 and global_step[0] >= args.max_steps:
                 pbar.close()
-                if skipped_non_finite > 0:
+                if skipped_non_finite > 0 and show_pbar:
                     print(f"[Warn] train skipped non-finite batches: {skipped_non_finite}")
                 return running_loss / max(seen, 1)
 
@@ -174,7 +196,7 @@ def train_one_epoch_sft(
         )
 
     pbar.close()
-    if skipped_non_finite > 0:
+    if skipped_non_finite > 0 and show_pbar:
         print(f"[Warn] train skipped non-finite batches: {skipped_non_finite}")
     if seen == 0:
         raise RuntimeError("All train batches were skipped (no valid supervised tokens after shift).")
@@ -193,14 +215,20 @@ def train_sft_loop(
     use_device_map: bool,
     trainable_params,
     metrics_dir: str,
+    *,
+    use_ddp: bool = False,
+    is_main: bool = True,
 ) -> tuple[float, int]:
-    os.makedirs(metrics_dir, exist_ok=True)
     train_csv = os.path.join(metrics_dir, "train_sft.csv")
     test_csv = os.path.join(metrics_dir, "test_sft.csv")
-    with open(train_csv, "w") as f:
-        f.write("iteration,train_loss,train_perplexity\n")
-    with open(test_csv, "w") as f:
-        f.write("iteration,eval_loss,eval_perplexity\n")
+    if is_main:
+        os.makedirs(metrics_dir, exist_ok=True)
+        with open(train_csv, "w") as f:
+            f.write("iteration,train_loss,train_perplexity\n")
+        with open(test_csv, "w") as f:
+            f.write("iteration,eval_loss,eval_perplexity\n")
+    if use_ddp:
+        dist.barrier()
 
     best_loss = float("inf")
     best_epoch = -1
@@ -218,7 +246,7 @@ def train_sft_loop(
             device=device,
             use_device_map=use_device_map,
             trainable_params=trainable_params,
-            train_csv_path=train_csv,
+            train_csv_path=train_csv if is_main else "",
             log_every=args.log_every,
             global_step=global_step,
         )
@@ -230,25 +258,33 @@ def train_sft_loop(
             use_device_map=use_device_map,
             torch_dtype_str=args.torch_dtype,
             desc=f"[SFT Eval][Epoch {epoch}/{args.epochs}]",
+            use_ddp=use_ddp,
+            show_pbar=is_main,
         )
         eval_ppl = min(math.exp(min(eval_loss, 20.0)), 1e9)
 
-        with open(test_csv, "a") as f:
-            f.write(f"{global_step[0]},{eval_loss:.4f},{eval_ppl:.4f}\n")
+        if is_main:
+            with open(test_csv, "a") as f:
+                f.write(f"{global_step[0]},{eval_loss:.4f},{eval_ppl:.4f}\n")
 
         if eval_loss < best_loss:
             best_loss = eval_loss
             best_epoch = epoch
 
-        print(
-            f"[Epoch {epoch} Ends] train_loss={train_loss:.4f} | "
-            f"eval_loss={eval_loss:.4f} eval_ppl={eval_ppl:.2f} | "
-            f"best_eval_loss={best_loss:.4f} (best epoch: {best_epoch})"
-        )
+        if is_main:
+            print(
+                f"[Epoch {epoch} Ends] train_loss={train_loss:.4f} | "
+                f"eval_loss={eval_loss:.4f} eval_ppl={eval_ppl:.2f} | "
+                f"best_eval_loss={best_loss:.4f} (best epoch: {best_epoch})"
+            )
+
+        if use_ddp:
+            dist.barrier()
 
         # 用 max_steps 控制训练预算：达到后提前结束（更适合大数据集复验）
         if args.max_steps is not None and args.max_steps > 0 and global_step[0] >= args.max_steps:
-            print(f"[Stop] Reached max_steps={args.max_steps} at epoch {epoch}.")
+            if is_main:
+                print(f"[Stop] Reached max_steps={args.max_steps} at epoch {epoch}.")
             break
 
     return best_loss, best_epoch
@@ -332,103 +368,149 @@ def main():
         if dsp is not None:
             args.sft_split = dsp
 
-    set_seed(args.seed)
+    world_size = int(os.environ.get("WORLD_SIZE", "1"))
+    rank = int(os.environ.get("RANK", "0"))
+    local_rank = int(os.environ.get("LOCAL_RANK", "0"))
+    use_ddp = world_size > 1 and torch.cuda.is_available()
+    is_main = rank == 0
 
-    dm = (args.device_map or "").strip().lower()
-    use_device_map = dm not in ("", "none", "false", "0")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    model, tokenizer = load_causal_lm_and_tokenizer(
-        CausalLMConfig(
-            model_name=args.model_name,
-            trust_remote_code=args.trust_remote_code,
-            torch_dtype=args.torch_dtype,
-            device_map=args.device_map if use_device_map else None,
-        )
-    )
-    if not use_device_map:
-        model.to(device)
-
-    data_cfg = SFTDataConfig(
-        dataset_id=args.sft_dataset,
-        dataset_config=args.sft_dataset_config,
-        split_train=args.sft_split,
-        val_ratio=args.sft_val_ratio,
-        max_samples=args.sft_max_samples,
-        max_length=args.max_length,
-        num_workers=args.num_workers,
-        seed=args.seed,
-    )
-    train_loader, eval_loader = build_sft_dataloaders(
-        tokenizer=tokenizer,
-        cfg=data_cfg,
-        batch_size=args.batch_size,
-    )
-
-    if args.lora_type == "default":
-        from lora import LoRAConfig, apply_lora, mark_only_lora_as_trainable, lora_trainable_parameters
-
-        print("[SFT] Using default LoRA from lora.py")
+    if use_ddp:
+        dist.init_process_group(backend="nccl")
+        torch.cuda.set_device(local_rank)
+        device = torch.device(f"cuda:{local_rank}")
+        use_device_map = False
+        args._show_pbar = is_main
+        if is_main:
+            print(f"[SFT] DDP enabled: world_size={world_size}, local_rank={local_rank}")
     else:
-        from mlora import LoRAConfig, apply_lora, mark_only_lora_as_trainable, lora_trainable_parameters
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        dm = (args.device_map or "").strip().lower()
+        use_device_map = dm not in ("", "none", "false", "0")
+        args._show_pbar = True
 
-        print("[SFT] Using mLoRA from mlora.py")
+    set_seed(args.seed + rank)
 
-    targets = [t.strip() for t in args.lora_targets.split(",") if t.strip()]
-    lora_cfg = LoRAConfig(
-        r=args.lora_r,
-        alpha=args.lora_alpha,
-        dropout=args.lora_dropout,
-        target_modules=targets,
-        attention_only=args.lora_attention_only,
-    )
-    apply_lora(device, model, lora_cfg, verbose=True)
-    mark_only_lora_as_trainable(model)
+    try:
+        model, tokenizer = load_causal_lm_and_tokenizer(
+            CausalLMConfig(
+                model_name=args.model_name,
+                trust_remote_code=args.trust_remote_code,
+                torch_dtype=args.torch_dtype,
+                device_map=None if use_ddp else (args.device_map if use_device_map else None),
+            )
+        )
+        if use_ddp or not use_device_map:
+            model.to(device)
 
-    if args.gradient_checkpointing:
-        if hasattr(model, "gradient_checkpointing_enable"):
-            model.gradient_checkpointing_enable()
-            print("[SFT] gradient_checkpointing enabled")
-        if hasattr(model, "config") and hasattr(model.config, "use_cache"):
-            model.config.use_cache = False
+        data_cfg = SFTDataConfig(
+            dataset_id=args.sft_dataset,
+            dataset_config=args.sft_dataset_config,
+            split_train=args.sft_split,
+            val_ratio=args.sft_val_ratio,
+            max_samples=args.sft_max_samples,
+            max_length=args.max_length,
+            num_workers=args.num_workers,
+            seed=args.seed,
+        )
+        train_loader, eval_loader = build_sft_dataloaders(
+            tokenizer=tokenizer,
+            cfg=data_cfg,
+            batch_size=args.batch_size,
+            ddp=use_ddp,
+            world_size=world_size,
+            rank=rank,
+        )
 
-    trainable = lora_trainable_parameters(model)
-    n_trainable = sum(p.numel() for p in trainable)
-    n_total = sum(p.numel() for p in model.parameters())
-    print(f"[SFT Params] trainable={n_trainable:,} / total={n_total:,} ({100.0 * n_trainable / n_total:.4f}%)")
+        if args.lora_type == "default":
+            from lora import LoRAConfig, apply_lora, mark_only_lora_as_trainable, lora_trainable_parameters
 
-    optimizer = get_optimizer(trainable, AdamWConfig(lr=args.lr, weight_decay=args.weight_decay))
+            if is_main:
+                print("[SFT] Using default LoRA from lora.py")
+        else:
+            from mlora import LoRAConfig, apply_lora, mark_only_lora_as_trainable, lora_trainable_parameters
 
-    steps_per_epoch = math.ceil(len(train_loader) / args.grad_accum_steps)
-    total_steps = max(1, steps_per_epoch * args.epochs)
-    if args.max_steps is not None and args.max_steps > 0:
-        total_steps = min(total_steps, args.max_steps)
-    warmup_steps = int(total_steps * args.warmup_ratio)
-    scheduler = get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=total_steps,
-    )
+            if is_main:
+                print("[SFT] Using mLoRA from mlora.py")
 
-    scaler = torch.cuda.amp.GradScaler(
-        enabled=(args.torch_dtype in ("float16", "fp16")) and torch.cuda.is_available()
-    )
+        targets = [t.strip() for t in args.lora_targets.split(",") if t.strip()]
+        lora_cfg = LoRAConfig(
+            r=args.lora_r,
+            alpha=args.lora_alpha,
+            dropout=args.lora_dropout,
+            target_modules=targets,
+            attention_only=args.lora_attention_only,
+        )
+        apply_lora(device, model, lora_cfg, verbose=is_main)
+        mark_only_lora_as_trainable(model)
 
-    best_loss, best_epoch = train_sft_loop(
-        model=model,
-        train_loader=train_loader,
-        eval_loader=eval_loader,
-        optimizer=optimizer,
-        scheduler=scheduler,
-        scaler=scaler,
-        args=args,
-        device=device,
-        use_device_map=use_device_map,
-        trainable_params=trainable,
-        metrics_dir=args.metrics_dir,
-    )
-    print(f"[Done] Best eval loss = {best_loss:.4f} @ epoch {best_epoch}")
-    print(f"Metrics: {os.path.join(args.metrics_dir, 'train_sft.csv')} , {os.path.join(args.metrics_dir, 'test_sft.csv')}")
+        if args.gradient_checkpointing:
+            if hasattr(model, "gradient_checkpointing_enable"):
+                model.gradient_checkpointing_enable()
+                if is_main:
+                    print("[SFT] gradient_checkpointing enabled")
+            if hasattr(model, "config") and hasattr(model.config, "use_cache"):
+                model.config.use_cache = False
+
+        if use_ddp:
+            model = DDP(
+                model,
+                device_ids=[local_rank],
+                output_device=local_rank,
+                find_unused_parameters=False,
+            )
+
+        trainable = lora_trainable_parameters(model.module if use_ddp else model)
+        n_trainable = sum(p.numel() for p in trainable)
+        n_total = sum(p.numel() for p in (model.module if use_ddp else model).parameters())
+        if is_main:
+            print(f"[SFT Params] trainable={n_trainable:,} / total={n_total:,} ({100.0 * n_trainable / n_total:.4f}%)")
+            if use_ddp:
+                print(
+                    f"[SFT] 每卡 batch_size={args.batch_size}，全局约等于 "
+                    f"{args.batch_size * world_size * args.grad_accum_steps} 样本/optimizer step（梯度同步后）"
+                )
+
+        optimizer = get_optimizer(trainable, AdamWConfig(lr=args.lr, weight_decay=args.weight_decay))
+
+        steps_per_epoch = math.ceil(len(train_loader) / args.grad_accum_steps)
+        total_steps = max(1, steps_per_epoch * args.epochs)
+        if args.max_steps is not None and args.max_steps > 0:
+            total_steps = min(total_steps, args.max_steps)
+        warmup_steps = int(total_steps * args.warmup_ratio)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_steps,
+        )
+
+        scaler = torch.cuda.amp.GradScaler(
+            enabled=(args.torch_dtype in ("float16", "fp16")) and torch.cuda.is_available()
+        )
+
+        best_loss, best_epoch = train_sft_loop(
+            model=model,
+            train_loader=train_loader,
+            eval_loader=eval_loader,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            scaler=scaler,
+            args=args,
+            device=device,
+            use_device_map=use_device_map,
+            trainable_params=trainable,
+            metrics_dir=args.metrics_dir,
+            use_ddp=use_ddp,
+            is_main=is_main,
+        )
+        if is_main:
+            print(f"[Done] Best eval loss = {best_loss:.4f} @ epoch {best_epoch}")
+            print(
+                f"Metrics: {os.path.join(args.metrics_dir, 'train_sft.csv')} , "
+                f"{os.path.join(args.metrics_dir, 'test_sft.csv')}"
+            )
+    finally:
+        if use_ddp and dist.is_initialized():
+            dist.destroy_process_group()
 
 
 if __name__ == "__main__":

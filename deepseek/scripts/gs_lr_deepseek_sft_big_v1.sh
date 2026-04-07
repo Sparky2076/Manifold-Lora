@@ -21,19 +21,19 @@ LR_LIST=(${LR_LIST:-2e-5 2.5e-5})
 # 预算档：短训/中训（optimizer steps）
 STEPS_LIST=(${STEPS_LIST:-2000 4000})
 
-# 16GB 级 GPU：batch=2、512 长序列易 OOM；默认 1 + 梯度检查点 + fp16
-BATCH_SIZE="${BATCH_SIZE:-1}"
+# 多卡 DDP：每卡 batch（全局吞吐 ≈ BATCH_SIZE * NGPU * GRAD_ACCUM_STEPS）
+NGPU="${NGPU:-2}"
+NPROC_PER_NODE="${NPROC_PER_NODE:-$NGPU}"
+BATCH_SIZE="${BATCH_SIZE:-2}"
 GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-8}"
 MAX_LENGTH="${MAX_LENGTH:-512}"
-GRADIENT_CHECKPOINTING="${GRADIENT_CHECKPOINTING:-1}"
 
 LORA_TYPE="default"
 LORA_R="${LORA_R:-8}"
 LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 
-# 大集默认 fp16（main_sft 会开 GradScaler）；若loss NaN 再设 TORCH_DTYPE=float32
-TORCH_DTYPE="${TORCH_DTYPE:-float16}"
+TORCH_DTYPE="${TORCH_DTYPE:-float32}"
 
 for LR in "${LR_LIST[@]}"; do
   for MAX_STEPS in "${STEPS_LIST[@]}"; do
@@ -42,10 +42,11 @@ for LR in "${LR_LIST[@]}"; do
     mkdir -p "$OUT_DIR"
     echo "==== SFT LoRA big submit LR=$LR steps=$MAX_STEPS -> $OUT_DIR ===="
     JOB_NAME="sftbig_${SFT_PRESET}_lora_${SAFE_LR}_s${MAX_STEPS}" \
+      NGPU="$NGPU" \
+      NPROC_PER_NODE="$NPROC_PER_NODE" \
       EPOCHS="${EPOCHS:-99}" \
       MAX_STEPS="$MAX_STEPS" \
       TORCH_DTYPE="$TORCH_DTYPE" \
-      GRADIENT_CHECKPOINTING="$GRADIENT_CHECKPOINTING" \
       BATCH_SIZE="$BATCH_SIZE" \
       GRAD_ACCUM_STEPS="$GRAD_ACCUM_STEPS" \
       MAX_LENGTH="$MAX_LENGTH" \
