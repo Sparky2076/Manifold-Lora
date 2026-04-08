@@ -17,16 +17,21 @@
 - `MAX_LENGTH=512`
 - LoRA：`default, r=8, alpha=16, dropout=0.05`
 
-## Job 提交记录（待回填）
+## Job 提交记录
 
 | JobID | lr | max_steps | 状态 | best eval loss | best step | best eval ppl | 备注 |
 |------:|---:|----------:|------|----------------|----------:|--------------:|------|
-| 316967 | `1e-5` | 3000 | RUN |  |  |  | 2026-04-08 提交 |
-| 316968 | `2e-5` | 3000 | RUN |  |  |  | 2026-04-08 提交 |
-| 316969 | `3e-5` | 3000 | RUN |  |  |  | 2026-04-08 提交 |
+| 316967 | `1e-5` | 3000 | DONE | 1.3698 | 3000 | 3.93 | 粗筛基线；收敛正常 |
+| 316968 | `2e-5` | 3000 | DONE | 1.3439 | 3000 | 3.83 | 明显优于 `1e-5` |
+| 316969 | `3e-5` | 3000 | DONE | 1.3306 | 3000 | 3.78 | 本轮 LoRA 最优 |
 
 ## 指标位置
 
 - `deepseek/results/sft_grid_coarse/mix_chat_real_300k_lora_lr_*_s3000/train_sft.csv`
 - `deepseek/results/sft_grid_coarse/mix_chat_real_300k_lora_lr_*_s3000/test_sft.csv`
+
+## 本轮结论（LoRA）
+
+- 在 `max_steps=3000` 的单卡粗筛下，LoRA 呈现随学习率增大而持续改善：`1e-5 > 2e-5 > 3e-5`（loss 由 1.3698 降至 1.3306）。
+- **当前最优点：`lr=3e-5`（Job 316969）**，建议下一轮围绕 `3e-5` 做细化（如 `2.5e-5 / 3e-5 / 3.5e-5`），并把 `max_steps` 提升到 6000-10000 验证稳定性。
 
