@@ -2,7 +2,8 @@
 # DeepSeek SFT mLoRA 第三轮（步数预算）
 # 固定 round2 最优 lr=1.1e-4，扫 max_steps，验证「慢热 / 需更长训练」假设。
 #
-# 默认 LR 可被覆盖：LR=1e-4 STEPS_LIST="10000" bash ...
+# 默认 STEPS_LIST=12000 15000 18000；可覆盖：STEPS_LIST="8000 10000" bash ...
+# 默认 LR 可被覆盖：LR=1e-4 bash ...
 #
 # 用法:
 #   bash deepseek/scripts/gs_sft_mlora_round3_steps.sh
@@ -14,7 +15,8 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 SFT_PRESET="${SFT_PRESET:-mix_chat_real_300k}"
 SFT_VAL_RATIO="${SFT_VAL_RATIO:-0.02}"
-EPOCHS="${EPOCHS:-16}"
+# 长步数 sweep 时仅作外层上限（训练由 max_steps 截断）
+EPOCHS="${EPOCHS:-20}"
 
 NGPU="${NGPU:-1}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-1}"
@@ -30,7 +32,7 @@ LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 
 SAFE_LR=$(echo "$LR" | sed 's/\./p/g; s/-/_/g')
-STEPS_LIST=(${STEPS_LIST:-8000 10000 12000})
+STEPS_LIST=(${STEPS_LIST:-12000 15000 18000})
 
 for MAX_STEPS in "${STEPS_LIST[@]}"; do
   OUT_DIR="$PROJECT_DIR/deepseek/results/sft_grid_round3/${SFT_PRESET}_mlora_lr_${SAFE_LR}_s${MAX_STEPS}"
