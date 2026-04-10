@@ -1,4 +1,4 @@
-# DeepSeek SFT LoRA 第三轮（步数预算，结果待回填）
+# DeepSeek SFT LoRA 第三轮（步数预算，结果已回填）
 
 - 日期：**2026-04-08**
 - 目标：固定 `lr=3.5e-5`，扫 `max_steps`，观察 eval 是否继续改善或平台期
@@ -17,18 +17,24 @@
 - `BATCH_SIZE=2`，`GRAD_ACCUM_STEPS=8`，`MAX_LENGTH=512`
 - LoRA：`default, r=8, alpha=16, dropout=0.05`
 
-## Job 提交记录（待回填）
+## Job 提交记录
 
 脚本为先 `echo` 再 `bsub`，故 JobID 与步数对应为：第一轮提交 → 8000，第二轮 → 10000，第三轮 → 12000。
 
 | JobID | max_steps | 状态 | best eval loss | best step | best eval ppl | 备注 |
 |------:|----------:|------|----------------|----------:|--------------:|------|
-| 317152 | 8000 | RUN |  |  |  | 2026-04-08 提交 |
-| 317153 | 10000 | RUN |  |  |  | 2026-04-08 提交 |
-| 317154 | 12000 | RUN |  |  |  | 2026-04-08 提交 |
+| 317152 | 8000 | DONE | 1.2955 | 8000 | 3.65 |  |
+| 317153 | 10000 | DONE | 1.2893 | 10000 | 3.63 |  |
+| 317154 | 12000 | DONE | 1.2843 | 12000 | 3.61 | 本轮最优 |
 
 ## 指标位置
 
 - `deepseek/results/sft_grid_round3/mix_chat_real_300k_lora_lr_3p5e_5_s8000/`
 - `deepseek/results/sft_grid_round3/mix_chat_real_300k_lora_lr_3p5e_5_s10000/`
 - `deepseek/results/sft_grid_round3/mix_chat_real_300k_lora_lr_3p5e_5_s12000/`
+
+## 本轮结论（LoRA round3）
+
+- 固定 `lr=3.5e-5` 时，`8000 → 10000 → 12000` 步 eval **持续下降**（`1.2955 → 1.2893 → 1.2843`），未出现平台或反弹迹象。
+- 相对 round2 同 lr（`6000` step 的 **1.3038**），继续加长训练到 **12000** 可再降约 **0.02** loss。
+- **当前 LoRA 推荐单点：`lr=3.5e-5` + `max_steps=12000`（Job 317154）**；若算力允许，可再试 `15000` 单点确认是否仍下降或已接近平台。
