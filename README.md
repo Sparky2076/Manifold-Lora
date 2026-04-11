@@ -33,6 +33,17 @@ export CONDA_ROOT="$HOME/miniconda3"   # 建议显式设置，与计算节点一
 bash scripts/server_submit_distilbert_grid.sh
 ```
 
+**强制全部重交**（`GRID_RESUME=0`，不跳过已有 `test.csv`），建议同样包在 **tmux** 里：
+
+```bash
+tmux new -s grid
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+bash scripts/server_submit_distilbert_grid_force.sh
+```
+
+（等价：`GRID_RESUME=0 bash scripts/server_submit_distilbert_grid.sh`。）
+
 或手动：
 
 ```bash
@@ -91,6 +102,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `distilbert/scripts/submit_bsub.sh` | 单次分类作业 |
 | `scripts/upload.sh`、`upload.ps1` | **仅**上传 DistilBERT 网格相关文件（见上文） |
 | `scripts/server_submit_distilbert_grid.sh` | 服务器端：`sed` + 可选探测 `CONDA_ROOT` + `run_grid_bsub.sh` |
+| `scripts/server_submit_distilbert_grid_force.sh` | 同上但 **`GRID_RESUME=0`**（强制全部重交）；注释含 tmux |
 | `scripts/commit_and_push.sh` | 交互式提交推送 GitHub |
 
 服务器上提交前 **`sed`** 与 **§0** 一致；查看任务：`bjobs`，日志：`JOBID.out` / `JOBID.err`。

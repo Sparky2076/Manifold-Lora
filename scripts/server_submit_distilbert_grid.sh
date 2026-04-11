@@ -20,6 +20,9 @@
 #
 # 网格定义：distilbert_autogrid/config.py
 # 汇总：python -m distilbert_autogrid.aggregate_results
+#
+# 强制全部重交（不跳过已完成目录）：见 scripts/server_submit_distilbert_grid_force.sh
+# 或： GRID_RESUME=0 bash scripts/server_submit_distilbert_grid.sh
 # =============================================================================
 
 set -euo pipefail

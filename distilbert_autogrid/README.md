@@ -82,7 +82,8 @@ bash distilbert_autogrid/run_grid_bsub.sh
 
 `run_grid_bsub.sh` 默认 **`GRID_RESUME=1`**：若某目录下已有 **`test.csv`**，且数据行数（去掉表头）**≥ `EPOCHS`**，则认为该组合已完整跑完，**不再 `bsub`**。脚本中断或 SSH 断开后，**重新执行同一条** `bash distilbert_autogrid/run_grid_bsub.sh` 即可从缺口继续提交。
 
-- **强制全部重交**（忽略已有结果）：`GRID_RESUME=0 bash distilbert_autogrid/run_grid_bsub.sh`
+- **强制全部重交**（忽略已有结果）：`GRID_RESUME=0 bash distilbert_autogrid/run_grid_bsub.sh`  
+  或（含 `sed` + `CONDA_ROOT` 默认）：`bash scripts/server_submit_distilbert_grid_force.sh`（见脚本内 **tmux** 说明）
 
 脚本对 `iter_grid()` 中每一组调用一次 `distilbert/scripts/submit_bsub.sh`，各作业 `METRICS_DIR` 指向 `distilbert_autogrid/results/<run_name>/`。可选环境变量（覆盖默认）：
 
