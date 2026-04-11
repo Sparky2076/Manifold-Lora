@@ -46,4 +46,4 @@ python -m distilbert.main --model_name distilbert-base-uncased \
   --metrics_dir distilbert/results
 ```
 
-上传服务器、拉回 CSV 与仓库根 [README.md](../README.md) 一致；**`scripts/upload.sh` 仅上传** DistilBERT 与 `distilbert_autogrid/`（及根目录共享模块）。
+上传服务器、拉回 CSV 见 [distilbert_autogrid/README.md](../distilbert_autogrid/README.md)；**`scripts/upload.sh` 仅上传** DistilBERT 与 `distilbert_autogrid/`（及根目录共享模块）。
