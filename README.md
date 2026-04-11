@@ -67,6 +67,33 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distil
 scp -r "wangxiao@202.121.138.196:~/Manifold-Lora/distilbert_autogrid/results/<run_name>" distilbert_autogrid/results/
 ```
 
+#### 网格提交脚本：该用哪个、tmux、怎么停
+
+| 场景 | 用什么 | 说明 |
+|------|--------|------|
+| **接着交 / 不重跑已完成的**（默认） | `bash scripts/server_submit_distilbert_grid.sh` | 内部调用 `run_grid_bsub.sh`，默认 **`GRID_RESUME=1`**：某目录 `test.csv` 已有 ≥ `EPOCHS` 行则 **skip**，不再 `bsub`。也可直接：`bash distilbert_autogrid/run_grid_bsub.sh`（需自行 `sed` 时见上表「手动」）。 |
+| **强制全部重交**（覆盖重跑每一格） | `bash scripts/server_submit_distilbert_grid_force.sh` | 固定 **`GRID_RESUME=0`**，不跳过。等价：`GRID_RESUME=0 bash scripts/server_submit_distilbert_grid.sh`。 |
+| **计算节点 Conda** | `export CONDA_ROOT="$HOME/miniconda3"` | 批作业里常需显式设置（路径下须有 `etc/profile.d/conda.sh`），与 [`distilbert/scripts/run_train_bsub.sh`](distilbert/scripts/run_train_bsub.sh) 一致。 |
+
+**tmux（推荐，SSH 断线后提交循环一般仍继续）**：
+
+```bash
+tmux new -s grid
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+bash scripts/server_submit_distilbert_grid.sh          # 续跑 skip
+# 或： bash scripts/server_submit_distilbert_grid_force.sh   # 全部重交
+# 离开会话：Ctrl+B，松手后再按 D     重连：tmux attach -t grid     列表：tmux ls
+```
+
+**停止提交脚本**：在运行 `bash scripts/server_submit_*.sh` 或 `run_grid_bsub.sh` 的终端按 **`Ctrl+C`** → 只结束**本机上的提交循环**，**之后不会再自动 bsub**。已在队列里或运行中的作业 **不会** 因此被取消。
+
+**取消已提交的作业**：`bjobs` 查看 JobID，再 **`bkill <JOBID>`**（或集群提供的批量命令）。详见集群 LSF 文档。
+
+**Pending 节流**：若出现 `Pending job threshold reached. Retrying in 60 seconds...`，为站点对同时 **PEND** 作业数限制，属正常；脚本会等待后**继续**提交，无需改仓库脚本。
+
+更细的网格参数、汇总命令见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md)。
+
 ---
 
 ### 1. 实时看指标（DistilBERT）
@@ -96,7 +123,7 @@ bash distilbert/scripts/watch_metrics.sh
 
 | 脚本 | 说明 |
 |------|------|
-| `distilbert_autogrid/run_grid_bsub.sh` | LSF：全因子网格，每组合一作业；`GRID_RESUME`、`tmux` 见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md) |
+| `distilbert_autogrid/run_grid_bsub.sh` | LSF：全因子网格，每组合一作业；**续跑/强交/tmux/停止** 见上文 **§0「网格提交脚本」**；参数细节见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md) |
 | `distilbert_autogrid/run_grid.py` | 本地顺序跑网格 |
 | `distilbert_autogrid/aggregate_results.py` | 生成 `summary.csv` |
 | `distilbert/scripts/submit_bsub.sh` | 单次分类作业 |
