@@ -23,8 +23,45 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_DIR"
 
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate torch
+# Conda：LSF 批作业往往没有登录 shell 的 PATH，`conda info --base` 可能为空（会误 source 成 /etc/profile.d/conda.sh）。
+# 请在提交前设置其一：export CONDA_ROOT=$HOME/miniconda3   （或 anaconda3、mambaforge 等根目录）
+# 可选：CONDA_ENV_NAME（默认 torch）
+_resolve_conda_sh() {
+  local r c
+  for r in "${CONDA_ROOT:-}" "${CONDA_BASE:-}"; do
+    if [[ -n "$r" && -f "$r/etc/profile.d/conda.sh" ]]; then
+      echo "$r/etc/profile.d/conda.sh"
+      return 0
+    fi
+  done
+  if command -v conda >/dev/null 2>&1; then
+    c="$(conda info --base 2>/dev/null || true)"
+    if [[ -n "$c" && -f "$c/etc/profile.d/conda.sh" ]]; then
+      echo "$c/etc/profile.d/conda.sh"
+      return 0
+    fi
+  fi
+  for r in "$HOME/miniconda3" "$HOME/anaconda3" "$HOME/mambaforge" "$HOME/miniforge3" "/opt/conda"; do
+    if [[ -f "$r/etc/profile.d/conda.sh" ]]; then
+      echo "$r/etc/profile.d/conda.sh"
+      return 0
+    fi
+  done
+  return 1
+}
+
+CONDA_SH=""
+CONDA_SH="$(_resolve_conda_sh)" || true
+if [[ -z "${CONDA_SH}" || ! -f "${CONDA_SH}" ]]; then
+  echo "[run_train_bsub] 找不到 conda 的 etc/profile.d/conda.sh。" >&2
+  echo "  请在作业环境里设置: export CONDA_ROOT=/你的/conda/根目录  （该目录下应有 etc/profile.d/conda.sh）" >&2
+  echo "  例: export CONDA_ROOT=\$HOME/miniconda3" >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+source "${CONDA_SH}"
+CONDA_ENV_NAME="${CONDA_ENV_NAME:-torch}"
+conda activate "${CONDA_ENV_NAME}"
 
 # LSF 网格：若尚未有 run_meta.json（本地 run_grid.py 会预写），则从环境变量写入，供 aggregate_results 使用
 META_PATH="$METRICS_DIR/run_meta.json"

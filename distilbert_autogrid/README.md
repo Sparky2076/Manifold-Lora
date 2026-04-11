@@ -32,6 +32,20 @@ sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh d
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
+### Conda（LSF 计算节点必看）
+
+批作业里常**没有**交互式 shell 的 `PATH`，`conda info --base` 可能失败，导致找不到 `conda.sh`。请先确认本机 conda 根目录（其下应有 `etc/profile.d/conda.sh`），在**提交网格或单次训练前**执行一次：
+
+```bash
+export CONDA_ROOT="$HOME/miniconda3"   # 或 anaconda3、mambaforge 等，按你机器实际路径改
+# 可选：环境名不是 torch 时
+# export CONDA_ENV_NAME=torch
+```
+
+再运行 `bash distilbert_autogrid/run_grid_bsub.sh` 或 `bash distilbert/scripts/submit_bsub.sh`。`submit_bsub.sh` 会把 `CONDA_ROOT` / `CONDA_BASE` / `CONDA_ENV_NAME` 传给作业。
+
+若仍出现 `importlib_metadata` / conda 插件报错，在登录节点尝试：`conda update -n base conda`，或在 base 环境 `pip install -U "importlib-metadata>=6"`。
+
 ### SSH 易断线：用 `tmux`（推荐）
 
 大批量提交时，用 `tmux` 包住会话，断网/关终端不会杀掉提交循环：
@@ -67,6 +81,8 @@ bash distilbert_autogrid/run_grid_bsub.sh
 | `LORA_DROPOUT` | LoRA dropout（默认 `0.05`） |
 | `BATCH_SIZE` | batch（默认 `4`） |
 | `GRAD_ACCUM_STEPS` | 梯度累积（默认 `8`） |
+| `CONDA_ROOT` / `CONDA_BASE` | Conda 安装根目录（LSF 批作业建议设置，见上文） |
+| `CONDA_ENV_NAME` | 要激活的环境名（默认 `torch`） |
 
 ## 汇总
 
