@@ -25,6 +25,7 @@ scp -r "$PROJECT_DIR/distilbert_autogrid" "$SERVER:~/$REMOTE_DIR/"
 scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/upload.ps1" \
     "$PROJECT_DIR/scripts/commit_and_push.sh" \
+    "$PROJECT_DIR/scripts/server_submit_distilbert_grid.sh" \
     "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 
 echo "上传完成。"

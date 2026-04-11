@@ -22,7 +22,8 @@ scp -r "${ProjectDir}/distilbert_autogrid" "${Server}:~/${RemoteDir}/"
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",
     "$ProjectDir/scripts/upload.ps1",
-    "$ProjectDir/scripts/commit_and_push.sh"
+    "$ProjectDir/scripts/commit_and_push.sh",
+    "$ProjectDir/scripts/server_submit_distilbert_grid.sh"
 )
 foreach ($f in $uploadOnly) {
     if (Test-Path $f) {

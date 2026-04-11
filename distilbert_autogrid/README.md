@@ -24,6 +24,20 @@ python -m distilbert_autogrid.run_grid
 
 ## LSF：每个组合一个作业（`bsub`）
 
+### 一键（服务器端完整流程）
+
+在**仓库根**（会先 `sed`、再按需探测 `CONDA_ROOT`，最后调用 `run_grid_bsub.sh`）：
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"   # 建议显式设置
+bash scripts/server_submit_distilbert_grid.sh
+```
+
+脚本说明见 [`scripts/server_submit_distilbert_grid.sh`](../scripts/server_submit_distilbert_grid.sh) 顶部注释（含 **tmux** 用法）。
+
+### 手动分步
+
 在**仓库根**：
 
 ```bash

@@ -23,19 +23,26 @@ bash scripts/upload.sh
 
 PowerShell：`.\scripts\upload.ps1`。
 
-**② 服务器：换行 + 提交**
+**② 服务器：一键提交（推荐）或手动**
+
+一键（含 `sed`、可选自动探测 `CONDA_ROOT`、再调 `run_grid_bsub.sh`）：
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"   # 建议显式设置，与计算节点一致
+bash scripts/server_submit_distilbert_grid.sh
+```
+
+或手动：
 
 ```bash
 cd ~/Manifold-Lora
 sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
-```
-
-全因子网格（每组合一个 `bsub`；建议 `tmux`、续跑见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md)）：
-
-```bash
-export CONDA_ROOT="$HOME/miniconda3"   # 按你机器修改
+export CONDA_ROOT="$HOME/miniconda3"
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
+
+全因子网格（每组合一个 `bsub`；建议 `tmux`、续跑见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md)）。
 
 单次训练：`bash distilbert/scripts/submit_bsub.sh`。
 
@@ -83,6 +90,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `distilbert_autogrid/aggregate_results.py` | 生成 `summary.csv` |
 | `distilbert/scripts/submit_bsub.sh` | 单次分类作业 |
 | `scripts/upload.sh`、`upload.ps1` | **仅**上传 DistilBERT 网格相关文件（见上文） |
+| `scripts/server_submit_distilbert_grid.sh` | 服务器端：`sed` + 可选探测 `CONDA_ROOT` + `run_grid_bsub.sh` |
 | `scripts/commit_and_push.sh` | 交互式提交推送 GitHub |
 
 服务器上提交前 **`sed`** 与 **§0** 一致；查看任务：`bjobs`，日志：`JOBID.out` / `JOBID.err`。
