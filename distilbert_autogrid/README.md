@@ -32,12 +32,36 @@ sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh d
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
+### SSH 易断线：用 `tmux`（推荐）
+
+大批量提交时，用 `tmux` 包住会话，断网/关终端不会杀掉提交循环：
+
+```bash
+tmux new -s grid
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+bash distilbert_autogrid/run_grid_bsub.sh
+```
+
+- **暂时离开（detach）**：`Ctrl+B`，松开后按 `D`。
+- **重新连上后恢复**：`tmux attach -t grid`
+- 列出会话：`tmux ls`
+
+不用 `tmux` 时也可用：`nohup bash distilbert_autogrid/run_grid_bsub.sh > run_grid_bsub.log 2>&1 &`（日志看 `tail -f run_grid_bsub.log`）。
+
+### 断点续交（自动跳过已跑完的组合）
+
+`run_grid_bsub.sh` 默认 **`GRID_RESUME=1`**：若某目录下已有 **`test.csv`**，且数据行数（去掉表头）**≥ `EPOCHS`**，则认为该组合已完整跑完，**不再 `bsub`**。脚本中断或 SSH 断开后，**重新执行同一条** `bash distilbert_autogrid/run_grid_bsub.sh` 即可从缺口继续提交。
+
+- **强制全部重交**（忽略已有结果）：`GRID_RESUME=0 bash distilbert_autogrid/run_grid_bsub.sh`
+
 脚本对 `iter_grid()` 中每一组调用一次 `distilbert/scripts/submit_bsub.sh`，各作业 `METRICS_DIR` 指向 `distilbert_autogrid/results/<run_name>/`。可选环境变量（覆盖默认）：
 
 | 变量 | 含义 |
 |------|------|
 | `RESULTS_ROOT` | 结果根目录（默认 `distilbert_autogrid/results`） |
 | `EPOCHS` | 训练轮数（默认见 `config.py`） |
+| `GRID_RESUME` | `1`（默认）跳过已完整完成的组合；`0` 全部提交 |
 | `QUEUE` | LSF 队列名（默认 `gpu`，在 `submit_bsub.sh`） |
 | `LORA_TYPE` | `default` 或 `mlora`（默认 `default`） |
 | `LORA_DROPOUT` | LoRA dropout（默认 `0.05`） |

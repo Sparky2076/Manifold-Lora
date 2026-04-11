@@ -44,7 +44,9 @@ sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh d
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
-网格定义在 **`distilbert_autogrid/config.py`**；结果在 **`distilbert_autogrid/results/<run_name>/`**。跑完后汇总：`python -m distilbert_autogrid.aggregate_results`（见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md)）。
+长时提交建议包在 **`tmux`** 里（断线不杀进程），以及 **`run_grid_bsub.sh` 默认会跳过 `test.csv` 已写满 `EPOCHS` 行的组合**，中断后同命令可续交。详见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md)（含 `tmux attach`、`GRID_RESUME=0` 强制全交）。
+
+网格定义在 **`distilbert_autogrid/config.py`**；结果在 **`distilbert_autogrid/results/<run_name>/`**。跑完后汇总：`python -m distilbert_autogrid.aggregate_results`。
 
 - **单次训练**（烟测或自定义 `METRICS_DIR`）：
 
@@ -172,7 +174,7 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 
 | 脚本 | 说明 |
 |------|------|
-| `distilbert_autogrid/run_grid_bsub.sh` | **DistilBERT 全因子网格**：`lr×r×alpha×weight_decay`，**每个组合一个 `bsub` 作业** |
+| `distilbert_autogrid/run_grid_bsub.sh` | **DistilBERT 全因子网格**：`lr×r×alpha×weight_decay`，**每个组合一个 `bsub` 作业**；环境变量 **`GRID_RESUME`**（续跑跳过已完成）、**`tmux`** 防 SSH 断线（见 [`distilbert_autogrid/README.md`](distilbert_autogrid/README.md)） |
 | `distilbert_autogrid/run_grid.py` | 同上网格的**本地顺序**执行（不占 LSF） |
 | `distilbert_autogrid/aggregate_results.py` | 扫描各子目录 `test.csv`，写 `summary.csv` |
 | `deepseek/scripts/gs_lr_deepseek_sft.sh` | DeepSeek SFT：`lr` 多组，结果 **`deepseek/results/sft_grid/`** |

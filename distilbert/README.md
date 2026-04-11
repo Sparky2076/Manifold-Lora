@@ -24,7 +24,9 @@ sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh d
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
-本地顺序跑（不占队列）：`python -m distilbert_autogrid.run_grid`（见 [distilbert_autogrid/README.md](../distilbert_autogrid/README.md)）。
+`tmux`、断点续交（`GRID_RESUME`）与 **`nohup`** 说明见 [distilbert_autogrid/README.md](../distilbert_autogrid/README.md)。
+
+本地顺序跑（不占队列）：`python -m distilbert_autogrid.run_grid`（同上文档）。
 
 ## 单次训练（对比 / 烟测）
 

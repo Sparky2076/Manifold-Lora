@@ -7,6 +7,7 @@
 #   bash distilbert_autogrid/run_grid_bsub.sh
 #
 # Optional env: RESULTS_ROOT, EPOCHS, QUEUE, LORA_TYPE, LORA_DROPOUT, BATCH_SIZE, GRAD_ACCUM_STEPS
+# Resume: GRID_RESUME=1 (default) skips combos whose test.csv already has >= EPOCHS eval rows; GRID_RESUME=0 submits all.
 
 set -euo pipefail
 
@@ -15,6 +16,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
 RESULTS_ROOT="${RESULTS_ROOT:-$PROJECT_DIR/distilbert_autogrid/results}"
+GRID_RESUME="${GRID_RESUME:-1}"
 export EPOCHS="${EPOCHS:-$(python -c "from distilbert_autogrid.config import EPOCHS_DEFAULT; print(EPOCHS_DEFAULT)")}"
 export ADAM_BETA1="${ADAM_BETA1:-$(python -c "from distilbert_autogrid.config import ADAM_BETA1_FIXED; print(ADAM_BETA1_FIXED)")}"
 export ADAM_BETA2="${ADAM_BETA2:-$(python -c "from distilbert_autogrid.config import ADAM_BETA2_FIXED; print(ADAM_BETA2_FIXED)")}"
@@ -36,6 +38,16 @@ for lr, r, alpha, wd in iter_grid():
   export LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
   export BATCH_SIZE="${BATCH_SIZE:-4}"
   export GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-8}"
+
+  if [[ "${GRID_RESUME}" != "0" ]] && [[ -f "${METRICS_DIR}/test.csv" ]]; then
+    lines=$(wc -l < "${METRICS_DIR}/test.csv" | tr -d ' \t')
+    data_rows=$((lines - 1))
+    if [[ "${data_rows}" -ge "${EPOCHS}" ]]; then
+      echo "[grid] skip (complete: ${data_rows} eval rows >= EPOCHS=${EPOCHS}): ${NAME}" >&2
+      continue
+    fi
+  fi
+
   bash distilbert/scripts/submit_bsub.sh
   sleep 2
 done
