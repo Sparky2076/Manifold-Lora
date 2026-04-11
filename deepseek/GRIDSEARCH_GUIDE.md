@@ -64,12 +64,13 @@ coarse 的学习率网格：
   - 默认：固定 `MAX_STEPS=10000`
   - lr：`3.25e-5 / 3.5e-5 / 3.75e-5`
 
-### 2.5 下一轮固定步数对照（round5）
+### 2.5 下一轮固定步数对照（LoRA round5 / mLoRA round4）
 
 - LoRA round5：`deepseek/scripts/gs_sft_lora_round5_lr.sh`
   - 默认：固定 `MAX_STEPS=6000`，lr：`3.75e-5 / 4e-5 / 4.25e-5`
-- mLoRA round5：`deepseek/scripts/gs_sft_mlora_round5_lr.sh`
+- mLoRA round4：`deepseek/scripts/gs_sft_mlora_round4_lr.sh`
   - 默认：固定 `MAX_STEPS=10000`，lr：`1.1e-4 / 1.3e-4 / 1.5e-4`
+  - 兼容别名：`deepseek/scripts/gs_sft_mlora_round5_lr.sh`（转发到 round4 脚本）
 
 ## 3. 网格间隔与“都搜了哪些参数”
 

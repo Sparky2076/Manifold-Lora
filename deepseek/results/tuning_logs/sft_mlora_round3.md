@@ -28,3 +28,7 @@
 - 相对 round2 同 lr、**6000 step** 的 **1.3520**，拉到 **18000** 约再降 **0.04** loss，支持你之前「mLoRA 可能需要更多 step」的判断。
 - 与 **LoRA** 同数据上的当前强点（`lr=3.5e-5`，**`eval_loss=1.2843 @ max_steps=12000`**）相比，mLoRA 在 **18000 step** 仍高约 **0.028**；若继续加 step，需看 `test_sft.csv` 曲线是否仍降或开始过拟合。
 - **当前 mLoRA 推荐单点（本轮内）**：`lr=1.1e-4` + **`max_steps=18000`（Job 317182）**。
+
+## 下一轮
+
+- 固定步数 lr 细扫（**mLoRA round 4**）：`deepseek/scripts/gs_sft_mlora_round4_lr.sh`，日志 `sft_mlora_round4.md`。
