@@ -1,4 +1,4 @@
-# 在本地 PowerShell 运行，上传代码到服务器
+# 仅上传 DistilBERT + distilbert_autogrid + 根模块 + scripts（与 upload.sh 一致）
 # 用法: .\scripts\upload.ps1  或  pwsh -File scripts/upload.ps1
 
 $ErrorActionPreference = "Stop"
@@ -8,7 +8,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 
 $Remote = "${Server}:~/${RemoteDir}/"
-Write-Host "上传到 $Remote"
+Write-Host "上传到 $Remote （DistilBERT + distilbert_autogrid + 根模块 + scripts）"
 
 scp "$ProjectDir/optimizers.py", `
     "$ProjectDir/lora.py", `
@@ -18,7 +18,6 @@ if (Test-Path "$ProjectDir/requirements.txt") { scp "$ProjectDir/requirements.tx
 
 scp -r "${ProjectDir}/distilbert" "${Server}:~/${RemoteDir}/"
 scp -r "${ProjectDir}/distilbert_autogrid" "${Server}:~/${RemoteDir}/"
-scp -r "${ProjectDir}/deepseek" "${Server}:~/${RemoteDir}/"
 
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",
@@ -31,4 +30,4 @@ foreach ($f in $uploadOnly) {
     }
 }
 
-Write-Host "上传完成（含 distilbert/、distilbert_autogrid/、deepseek/）"
+Write-Host "上传完成。"

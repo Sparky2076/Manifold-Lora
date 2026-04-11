@@ -28,7 +28,7 @@ python -m distilbert_autogrid.run_grid
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
@@ -53,7 +53,7 @@ export CONDA_ROOT="$HOME/miniconda3"   # 或 anaconda3、mambaforge 等，按你
 ```bash
 tmux new -s grid
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
@@ -96,7 +96,7 @@ python -m distilbert_autogrid.aggregate_results
 
 ## 上传到集群
 
-`scripts/upload.sh` / `upload.ps1` 会同步 **`distilbert/`**、**`distilbert_autogrid/`** 与 **`deepseek/`** 及根目录共享模块；提交网格前请整包上传。
+`scripts/upload.sh` / `upload.ps1` **仅**同步 **`distilbert/`**、**`distilbert_autogrid/`** 与根目录 `lora.py` / `mlora.py` / `optimizers.py` 及 `scripts/`（体积小）；提交网格前执行即可。
 
 ## 提交到 GitHub
 

@@ -3,7 +3,7 @@
 # Grid definition lives in distilbert_autogrid/config.py only.
 #
 # Usage (cluster):
-#   cd ~/Manifold-Lora && sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+#   cd ~/Manifold-Lora && sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
 #   bash distilbert_autogrid/run_grid_bsub.sh
 #
 # Optional env: RESULTS_ROOT, EPOCHS, QUEUE, LORA_TYPE, LORA_DROPOUT, BATCH_SIZE, GRAD_ACCUM_STEPS

@@ -1,5 +1,7 @@
 # DeepSeek 微调方案：任务与数据集选择
 
+> **说明**：`deepseek/` 包内**旧实现已移除**，下文仍可作为任务与数据选型参考；具体命令与路径以日后新代码为准。
+
 当前仓库的 **`distilbert/main.py`**（`python -m distilbert.main`）是针对**文本分类**（如 GLUE SST-2）设计的：使用 `AutoModelForSequenceClassification`、交叉熵损失、准确率指标。这类设定适合 BERT/DistilBERT，**不适合**直接用于 DeepSeek 这类**生成式因果语言模型**。下面说明原因、常见做法，并给出在 Hugging Face 上可用的数据集与实现方案。
 
 ---
@@ -123,32 +125,19 @@ ds = load_dataset("tatsu-lab/alpaca")["train"].select(range(1000))
 
 ## 4. 实现方案（两种思路）
 
-### 方案 A：在本仓库内增加「SFT 分支」（已实现，**不修改** `distilbert/main.py` 及同目录 `utils.py` / `models.py`）
+### 方案 A：在本仓库内增加「SFT 分支」（**待重新实现**，**不修改** `distilbert/main.py` 及同目录 `utils.py` / `models.py`）
 
-本仓库已用**独立文件**实现方案 A，与 DistilBERT 分类流水线并存：
+此前曾在 `deepseek/` 下放 SFT 入口、模型与数据工具、脚本与 `results/`，与 DistilBERT 分类并存；**旧代码已移除**，新网格搜索将按同思路重写。目标目录结构仍可参考下表（实现以新代码为准）：
 
-| 路径 | 作用 |
+| 路径（规划） | 作用 |
 |------|------|
-| `deepseek/main_sft.py` | SFT 入口（仓库根执行 `python -m deepseek.main_sft`）；训练循环对齐 `distilbert/main.py`，指标为 **eval loss / perplexity**。 |
-| `deepseek/models_sft.py` | `AutoModelForCausalLM` + Tokenizer。 |
-| `deepseek/utils_sft.py` | Hub 小指令集、Alpaca/Dolly 字段、`labels=-100` 掩码 prompt。 |
-| `deepseek/results/` | 与 `distilbert/results/` 结构对应：`tuning_logs/`、`final_sft/`、`sft_grid/`。 |
-| `lora.py` / `mlora.py`（根目录） | **复用** LoRA / mLoRA。 |
-| `optimizers.py`（根目录） | **复用** AdamW。 |
+| `deepseek/main_sft.py`（待补） | SFT 入口：`python -m deepseek.main_sft`；指标可为 eval loss / perplexity。 |
+| `deepseek/models_sft.py`（待补） | `AutoModelForCausalLM` + Tokenizer。 |
+| `deepseek/utils_sft.py`（待补） | 指令数据、`labels=-100` 掩码等。 |
+| `deepseek/results/` | 实验输出；与 `distilbert/results/` 形式可对照。 |
+| `lora.py` / `mlora.py`、`optimizers.py`（根目录） | **复用** LoRA / mLoRA / 优化器。 |
 
-**数据预设**（`--sft_preset`）：见 `deepseek.utils_sft.SFT_DATASET_PRESETS`。
-
-**本地 / 服务器单卡示例**（工作目录为仓库根）：
-
-```bash
-python -m deepseek.main_sft --trust_remote_code --device_map auto --torch_dtype float16 \
-  --sft_preset testing_alpaca_small --epochs 3 --batch_size 2 --max_length 512 --lr 2e-5 \
-  --metrics_dir deepseek/results
-```
-
-**LSF**：`deepseek/scripts/submit_bsub_sft.sh`（`run_deepseek_sft_bsub.sh` 调 `python -m deepseek.main_sft`）。**网格**：`deepseek/scripts/gs_lr_deepseek_sft.sh` → **`deepseek/results/sft_grid/`**。
-
-**SSH 全流程**：根目录 **[README.md](../README.md) §0.2**、**[deepseek/README.md](../deepseek/README.md)**。
+占位与后续说明见 **[deepseek/README.md](../deepseek/README.md)**；根目录 **[README.md](../README.md)** 以 DistilBERT 网格为主。
 
 **推荐起步**：先用 `testing_alpaca_small` 或 `alpaca_gpt4_500` 跑通；再上全量 `tatsu-lab/alpaca`（`--sft_dataset tatsu-lab/alpaca --sft_split train[:5000]` 等）。
 
@@ -176,4 +165,4 @@ python -m deepseek.main_sft --trust_remote_code --device_map auto --torch_dtype 
   - 若希望继续在本仓库玩 LoRA/mlora：按**方案 A** 加 SFT 分支 + Alpaca 数据 + CausalLM。  
   - 若优先「快速在标准设定下微调 DeepSeek」：用 **方案 B**（LLaMA-Factory / TRL / Unsloth）+ 同一批 Hugging Face 数据集。
 
-方案 A 的代码入口为 **`deepseek/main_sft.py`**（`python -m deepseek.main_sft`）；分类使用 **`distilbert/`** 包（`python -m distilbert.main`）。
+新方案 A 的代码入口将再次为 **`deepseek/main_sft.py`**（`python -m deepseek.main_sft`）；分类仍使用 **`distilbert/`**（`python -m distilbert.main`）。

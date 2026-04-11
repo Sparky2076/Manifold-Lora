@@ -1,6 +1,6 @@
 # DistilBERT 文本分类 + LoRA / mLoRA
 
-与 **`deepseek/`** 独立；训练**复用**仓库根目录的 `lora.py`、`mlora.py`、`optimizers.py`。
+训练**复用**仓库根目录的 `lora.py`、`mlora.py`、`optimizers.py`（与将重建的 **`deepseek/`** 占位目录独立）。
 
 ## 目录
 
@@ -20,7 +20,7 @@
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
 
@@ -32,7 +32,7 @@ bash distilbert_autogrid/run_grid_bsub.sh
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
 bash distilbert/scripts/submit_bsub.sh
 ```
 
@@ -46,4 +46,4 @@ python -m distilbert.main --model_name distilbert-base-uncased \
   --metrics_dir distilbert/results
 ```
 
-上传服务器、拉回 CSV 等流程与仓库根 [README.md](../README.md) 一致；DistilBERT 网格请同步上传 **`distilbert_autogrid/`**（见 `scripts/upload.sh`）。
+上传服务器、拉回 CSV 与仓库根 [README.md](../README.md) 一致；**`scripts/upload.sh` 仅上传** DistilBERT 与 `distilbert_autogrid/`（及根目录共享模块）。
