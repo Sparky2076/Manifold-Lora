@@ -128,20 +128,24 @@ bash scripts/server_submit_distilbert_grid.sh          # 默认续跑 skip
 
 **Pending 节流**：出现 `Pending job threshold reached. Retrying in 60 seconds...` 为站点对同时 **PEND** 作业数限制，属正常；集群侧会重试；若仍出现 **`User permission denied`**，需减少同时占用队列的作业数。
 
-**自节流（`run_grid_bsub.sh` 内建）**：每次 `bsub` **前**用 `bjobs` 看你的 `RUN` / `PEND` 数量，超限则**先 sleep 再试**，减轻「一次交太多 PEND」触顶。
+**自节流（`run_grid_bsub.sh` 内建）**：每次 `bsub` **前**用 `bjobs` 数你的 `RUN` / `PEND`，**超过上限则先 sleep 再试**。
+
+含义（数字即「最多允许几」，直观）：
 
 | 变量 | 含义 |
 |------|------|
-| `GRID_MAX_RUN` | 默认 `0`（关闭）。设为 **`5`** 表示：**RUN 数 ≥ 5** 时暂停提交，直到有作业结束 → 最多约 **5 个同时 RUN**。 |
-| `GRID_MAX_PEND` | 默认 `0`（关闭）。设为 **`2`** 表示：**PEND 数 ≥ 2** 时暂停 → 队列里最多堆 **1** 个 PEND。设为 **`1`** 则更严：仅当 **PEND=0** 时才交下一个。 |
+| `GRID_MAX_RUN` | 默认 `0`（关闭）。设为 **`5`** 表示：**RUN 数 > 5** 时暂停（即 **RUN≤5** 才继续交）→ 同时 **最多约 5 个 RUN**。 |
+| `GRID_MAX_PEND` | 默认 `0`（关闭）。设为 **`1`** 表示：**PEND 数 > 1** 时暂停（即 **PEND≤1**）→ **最多 1 个在排队**。 |
 | `GRID_POLL_SEC` | 轮询间隔秒数，默认 `30`。 |
+
+（旧版曾写「`GRID_MAX_PEND=2`」是因为当时用 **`>=` 阈值**；现已改为 **`>`，数字=「最多允许几个」，故最多 1 个 PEND 应设 **`GRID_MAX_PEND=1`。**）
 
 示例（**最多约 5 个 RUN、最多 1 个 PEND**）：
 
 ```bash
 export CONDA_ROOT="$HOME/miniconda3"
 export GRID_MAX_RUN=5
-export GRID_MAX_PEND=2
+export GRID_MAX_PEND=1
 export GRID_POLL_SEC=30
 bash scripts/server_submit_distilbert_grid.sh
 ```
