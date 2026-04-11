@@ -8,6 +8,7 @@
 #
 # 覆盖示例:
 #   LR_LIST="3.5e-5 3.75e-5" MAX_STEPS=6000 bash deepseek/scripts/gs_sft_lora_round5_lr.sh
+# 默认 LR：3.75e-5 / 4e-5 / 4.25e-5
 
 set -euo pipefail
 
@@ -31,7 +32,7 @@ LORA_R="${LORA_R:-8}"
 LORA_ALPHA="${LORA_ALPHA:-16}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 
-LR_LIST=(${LR_LIST:-3.25e-5 3.5e-5 3.75e-5})
+LR_LIST=(${LR_LIST:-3.75e-5 4e-5 4.25e-5})
 
 for LR in "${LR_LIST[@]}"; do
   SAFE_LR=$(echo "$LR" | sed 's/\./p/g; s/-/_/g')
