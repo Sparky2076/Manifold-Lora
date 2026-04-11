@@ -90,12 +90,12 @@ coarse 的学习率网格：
 
 - **mLoRA**：
   - round2（6000 step）最佳：`lr=1.1e-4`，`eval_loss=1.3520`
-  - round3（长训）正在跑：`12000/15000/18000`
+  - round3（步数 sweep）最佳：`lr=1.1e-4 + max_steps=18000`，`eval_loss=1.3123`
   - 详见：`deepseek/results/tuning_logs/sft_mlora_round2.md`、`sft_mlora_round3.md`
 
 结论（当前）：
 
-- **同预算/同配置下 LoRA 明显优于 mLoRA**（loss 低约 0.05 量级）。
+- **同任务设置下 LoRA 仍优于 mLoRA**（以各自当前最优比：约 `1.2843` vs `1.3123`，差距约 **0.028**）；mLoRA 通过更长 `max_steps` 明显缩小了与早期 mLoRA 的差距，但仍未反超 LoRA。
 
 ## 5. Grid Search 时跑了多少 step/epoch？
 
