@@ -1,0 +1,4 @@
+# 单次 bsub 默认输出目录；大网格见 distilbert_autogrid/results/
+*
+!.gitignore
+!README.md

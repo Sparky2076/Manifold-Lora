@@ -18,15 +18,19 @@ scp "$PROJECT_DIR/optimizers.py" \
 
 [ -f "$PROJECT_DIR/requirements.txt" ] && scp "$PROJECT_DIR/requirements.txt" "$SERVER:~/$REMOTE_DIR/"
 
-# DistilBERT 分类：整包上传（含 scripts、results）
+# DistilBERT 分类：整包上传
 scp -r "$PROJECT_DIR/distilbert" "$SERVER:~/$REMOTE_DIR/"
+
+# DistilBERT 全因子网格（config + run_grid + run_grid_bsub）
+scp -r "$PROJECT_DIR/distilbert_autogrid" "$SERVER:~/$REMOTE_DIR/"
 
 # DeepSeek SFT：整包上传
 scp -r "$PROJECT_DIR/deepseek" "$SERVER:~/$REMOTE_DIR/"
 
-# 根目录仅保留共享上传脚本
+# 根目录共享脚本
 scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/upload.ps1" \
+    "$PROJECT_DIR/scripts/commit_and_push.sh" \
     "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 
-echo "上传完成（含 distilbert/ 与 deepseek/ 目录）"
+echo "上传完成（含 distilbert/、distilbert_autogrid/、deepseek/）"

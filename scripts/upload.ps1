@@ -17,11 +17,13 @@ scp "$ProjectDir/optimizers.py", `
 if (Test-Path "$ProjectDir/requirements.txt") { scp "$ProjectDir/requirements.txt" $Remote }
 
 scp -r "${ProjectDir}/distilbert" "${Server}:~/${RemoteDir}/"
+scp -r "${ProjectDir}/distilbert_autogrid" "${Server}:~/${RemoteDir}/"
 scp -r "${ProjectDir}/deepseek" "${Server}:~/${RemoteDir}/"
 
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",
-    "$ProjectDir/scripts/upload.ps1"
+    "$ProjectDir/scripts/upload.ps1",
+    "$ProjectDir/scripts/commit_and_push.sh"
 )
 foreach ($f in $uploadOnly) {
     if (Test-Path $f) {
@@ -29,4 +31,4 @@ foreach ($f in $uploadOnly) {
     }
 }
 
-Write-Host "上传完成（含 distilbert/ 与 deepseek/ 目录）"
+Write-Host "上传完成（含 distilbert/、distilbert_autogrid/、deepseek/）"

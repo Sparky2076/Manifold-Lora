@@ -6,13 +6,13 @@
 
 | 流水线 | 入口 | 提交脚本 | 指标 CSV（默认目录） |
 |--------|------|----------|----------------------|
-| **DistilBERT 文本分类** | `distilbert/main.py`（`python -m distilbert.main`） | `distilbert/scripts/submit_bsub.sh` | **`distilbert/results/`** 下 `train.csv`、`test.csv`（或 `METRICS_DIR`） |
+| **DistilBERT 文本分类** | `distilbert/main.py`（`python -m distilbert.main`） | 单次：`distilbert/scripts/submit_bsub.sh`；**全因子网格（每组合一作业）**：`distilbert_autogrid/run_grid_bsub.sh` | 单次：**`distilbert/results/`**；网格：**`distilbert_autogrid/results/<run_name>/`**（见该目录说明） |
 | **DeepSeek 指令微调 SFT** | `deepseek/main_sft.py`（`python -m deepseek.main_sft`） | `deepseek/scripts/submit_bsub_sft.sh` | `deepseek/results/train_sft.csv`、`test_sft.csv`（或 `METRICS_DIR`） |
 
-- **DistilBERT**：独立目录 **`distilbert/`**（`main.py`、`models.py`、`utils.py`、`distilbert/scripts/`、**`distilbert/results/`**）。
+- **DistilBERT**：**`distilbert/`**（训练代码与 `scripts/`）；**`distilbert_autogrid/`**（网格配置、`run_grid` / `run_grid_bsub.sh`、`aggregate_results`）。
 - **DeepSeek**：独立目录 **`deepseek/`**（代码、`deepseek/scripts/`、**`deepseek/results/`**）；两条线均**复用**根目录 `lora.py` / `mlora.py` / `optimizers.py`。
 
-**DistilBERT 全流程见：[distilbert/README.md](distilbert/README.md)。DeepSeek 见：[deepseek/README.md](deepseek/README.md)。**
+**DistilBERT 说明：[distilbert/README.md](distilbert/README.md)；网格与汇总：[distilbert_autogrid/README.md](distilbert_autogrid/README.md)。Git 提交/推送辅助：[scripts/commit_and_push.sh](scripts/commit_and_push.sh)。DeepSeek 见：[deepseek/README.md](deepseek/README.md)。**
 
 ---
 
@@ -29,18 +29,34 @@ cd /d/GitHub_Code/Manifold-Lora
 bash scripts/upload.sh
 ```
 
-**② 服务器上修正脚本换行并提交训练任务**（SSH 登录后执行）：
+`upload.sh` 会同步 **`distilbert/`**、**`distilbert_autogrid/`**、**`deepseek/`** 及根目录共享模块。
+
+**② 服务器上修正脚本换行并提交**
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+```
+
+- **全因子网格（推荐，每个超参组合一个 `bsub` 作业）**：
+
+```bash
+bash distilbert_autogrid/run_grid_bsub.sh
+```
+
+网格定义在 **`distilbert_autogrid/config.py`**；结果在 **`distilbert_autogrid/results/<run_name>/`**。跑完后汇总：`python -m distilbert_autogrid.aggregate_results`（见 [distilbert_autogrid/README.md](distilbert_autogrid/README.md)）。
+
+- **单次训练**（烟测或自定义 `METRICS_DIR`）：
+
+```bash
 bash distilbert/scripts/submit_bsub.sh
 ```
 
-- 第一句 `sed`：把 Windows 上传的 `.sh` 从 CRLF 改为 LF，避免 `$'\r': command not found` / `set: pipefail`。
-- 第二句：提交单卡任务，默认 **DistilBERT + GLUE SST2**，默认 **`METRICS_DIR=~/Manifold-Lora/distilbert/results`**。查看任务：`bjobs`；日志：`cat JOBID.out`、`cat JOBID.err`。
+默认 **`METRICS_DIR=~/Manifold-Lora/distilbert/results`**。查看任务：`bjobs`；日志：`cat JOBID.out`、`cat JOBID.err`。
 
-**③ 本机保存训练结果 CSV**（本地 **PowerShell** 或 **Git Bash**；将 IP 换成当前学校服务器）：
+**③ 本机拉回 CSV**（将 IP 换成你的服务器；路径按实际 `METRICS_DIR` 修改）
+
+单次默认目录示例：
 
 ```powershell
 cd D:\GitHub_Code\Manifold-Lora
@@ -48,19 +64,17 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distil
 scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/test.csv distilbert/results/
 ```
 
-```bash
-cd /d/GitHub_Code/Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
-scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/test.csv distilbert/results/
-```
+网格某一组合（将 `<run_name>` 换成实际目录名，在服务器上 `ls distilbert_autogrid/results` 查看）：
 
-若任务里设置了 `METRICS_DIR` 为子目录（如网格搜索），把远端路径改成该目录下的 `train.csv` / `test.csv`。
+```bash
+scp -r "wangxiao@202.121.138.196:~/Manifold-Lora/distilbert_autogrid/results/<run_name>" distilbert_autogrid/results/
+```
 
 ---
 
 #### 0.2 DeepSeek 指令微调 SFT（与 0.1 步骤一一对应，**文件均在 `deepseek/`**）
 
-**① 本机上传**（与 0.1 相同；`upload.sh` 会 **`scp -r distilbert/`** 与 **`scp -r deepseek/`** 整包上传）：
+**① 本机上传**（与 0.1 相同；含 **`distilbert/`**、**`distilbert_autogrid/`**、**`deepseek/`**）：
 
 ```bash
 cd /d/GitHub_Code/Manifold-Lora
@@ -71,7 +85,7 @@ bash scripts/upload.sh
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
 bash deepseek/scripts/submit_bsub_sft.sh
 ```
 
@@ -96,7 +110,7 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/test_sft.csv deeps
 
 | 脚本 | 适用流水线 | 监控文件（默认目录） |
 |------|------------|----------------------|
-| `distilbert/scripts/watch_metrics.sh` | DistilBERT 分类 | **`distilbert/results/`** 下 `train.csv`、`test.csv` |
+| `distilbert/scripts/watch_metrics.sh` | DistilBERT 分类 | `METRICS_DIR` 下 `train.csv`、`test.csv`（默认 **`distilbert/results/`**；网格子目录同理） |
 | `deepseek/scripts/watch_metrics_sft.sh` | DeepSeek SFT | **`deepseek/results/`** 下 `train_sft.csv`、`test_sft.csv` |
 
 **DistilBERT（服务器）**：
@@ -105,6 +119,8 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/test_sft.csv deeps
 ssh wangxiao@202.121.138.196
 cd ~/Manifold-Lora
 bash distilbert/scripts/watch_metrics.sh
+# 或网格某一跑：
+# METRICS_DIR=distilbert_autogrid/results/lr_3p0000e-03_r8_a8_ep3_wd_0p0000e+00 bash distilbert/scripts/watch_metrics.sh
 ```
 
 **DeepSeek SFT（服务器）**：
@@ -148,7 +164,7 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 
 ---
 
-### 4. 学习率网格搜索（Grid Search）
+### 4. 超参网格（Grid Search）
 
 **本机仍只负责 `bash scripts/upload.sh`**（见第 0 节）；网格在**服务器**上执行。
 
@@ -156,23 +172,24 @@ METRICS_DIR=deepseek/results/sft_grid/testing_alpaca_small_lr_2e_5 bash deepseek
 
 | 脚本 | 说明 |
 |------|------|
-| `distilbert/scripts/gs_lr_lora.sh` | DistilBERT + LoRA：`lr` 多组 × 固定 epoch，多个 job |
-| `distilbert/scripts/gs_lr_mlora.sh` | DistilBERT + mLoRA：同上 |
-| `deepseek/scripts/gs_lr_deepseek_sft.sh` | DeepSeek SFT 网格：`lr` 多组，结果写入 **`deepseek/results/sft_grid/`** |
+| `distilbert_autogrid/run_grid_bsub.sh` | **DistilBERT 全因子网格**：`lr×r×alpha×weight_decay`，**每个组合一个 `bsub` 作业** |
+| `distilbert_autogrid/run_grid.py` | 同上网格的**本地顺序**执行（不占 LSF） |
+| `distilbert_autogrid/aggregate_results.py` | 扫描各子目录 `test.csv`，写 `summary.csv` |
+| `deepseek/scripts/gs_lr_deepseek_sft.sh` | DeepSeek SFT：`lr` 多组，结果 **`deepseek/results/sft_grid/`** |
 | `deepseek/scripts/submit_bsub_sft.sh` | SFT 单 job；默认 `METRICS_DIR=$PROJECT_DIR/deepseek/results` |
 | `deepseek/scripts/run_deepseek_sft_bsub.sh` | 计算节点执行 `python -m deepseek.main_sft` |
-| `distilbert/scripts/submit_bsub.sh` | DistilBERT 分类；转发 `EPOCHS`、`LR`、`LORA_*` 等 |
-| `scripts/upload.sh`、`scripts/upload.ps1` | 上传 **`distilbert/`** + **`deepseek/`** + 根目录 `lora.py` / `mlora.py` / `optimizers.py` |
+| `distilbert/scripts/submit_bsub.sh` | DistilBERT **单次**分类；转发 `EPOCHS`、`LR`、`LORA_*` 等 |
+| `scripts/upload.sh`、`scripts/upload.ps1` | 上传 **`distilbert/`**、**`distilbert_autogrid/`**、**`deepseek/`** + 根目录共享模块 |
+| `scripts/commit_and_push.sh` | 交互式 `git add` / `commit` / `push`（推 GitHub 时用） |
 
 #### 4.2 在服务器上提交网格
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
 ```
 
-- **LoRA**：`bash distilbert/scripts/gs_lr_lora.sh`
-- **mLoRA**：`bash distilbert/scripts/gs_lr_mlora.sh`
+- **DistilBERT 全因子网格**：`bash distilbert_autogrid/run_grid_bsub.sh`
 - **DeepSeek SFT**：`bash deepseek/scripts/gs_lr_deepseek_sft.sh`
 
 #### 4.3 查看任务与指标
@@ -184,7 +201,7 @@ cat JOBID.out
 cat JOBID.err
 ```
 
-- 分类：`tail -20 distilbert/results/train.csv`、`tail -20 distilbert/results/test.csv`（或你的 `METRICS_DIR`）
+- DistilBERT 单次：`tail -20 distilbert/results/train.csv` 等；网格：`tail -20 distilbert_autogrid/results/<run_name>/test.csv`
 - SFT：`tail -20 deepseek/results/train_sft.csv` 等（或 **`deepseek/results/sft_grid/某目录/`** 下）
 
 #### 4.4 保存结果到本机（与 0.1 / 0.2 一致）
@@ -204,7 +221,7 @@ scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/train_sft.csv deep
 scp wangxiao@202.121.138.196:~/Manifold-Lora/deepseek/results/test_sft.csv deepseek/results/
 ```
 
-网格结果在 **`deepseek/results/sft_grid/`**；归档时请放入本仓库 **`deepseek/results/`** 下对应子目录（与 DistilBERT 使用 **`distilbert/results/`** 对称）。
+DeepSeek 网格结果在 **`deepseek/results/sft_grid/`**。DistilBERT 全因子网格结果在 **`distilbert_autogrid/results/`**（勿将大体积 CSV 误提交 Git，见该目录 `.gitignore`）。
 
 ---
 

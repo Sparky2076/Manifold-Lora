@@ -241,6 +241,8 @@ def main():
     parser.add_argument("--grad_accum_steps", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-5)
     parser.add_argument("--weight_decay", type=float, default=0.01)
+    parser.add_argument("--adam_beta1", type=float, default=0.9, help="AdamW beta1")
+    parser.add_argument("--adam_beta2", type=float, default=0.999, help="AdamW beta2")
     parser.add_argument("--warmup_ratio", type=float, default=0.06)
     parser.add_argument("--max_grad_norm", type=float, default=1.0)
 
@@ -311,6 +313,7 @@ def main():
 
     opt_cfg = AdamWConfig(
         lr=args.lr,
+        betas=(args.adam_beta1, args.adam_beta2),
         weight_decay=args.weight_decay,
     )
     optimizer = get_optimizer(trainable, opt_cfg)

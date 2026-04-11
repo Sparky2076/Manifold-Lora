@@ -1,103 +1,47 @@
-# DistilBERT 文本分类 + LoRA / mLoRA — 独立目录说明
+# DistilBERT 文本分类 + LoRA / mLoRA
 
-本目录与 **`deepseek/`** 形式对齐，与 DeepSeek SFT **完全分离**：
+与 **`deepseek/`** 独立；训练**复用**仓库根目录的 `lora.py`、`mlora.py`、`optimizers.py`。
 
-- **代码**：`distilbert/main.py`、`models.py`、`utils.py`（训练**复用**仓库根的 `lora.py` / `mlora.py` / `optimizers.py`）
-- **脚本**：`distilbert/scripts/*.sh`
-- **结果**：`distilbert/results/`（`train.csv`、`test.csv`、实验子目录、`tuning_logs/`、`final_loRA/`、`final_mLoRA/` 等）
+## 目录
 
-运行训练时**工作目录必须是仓库根** `Manifold-Lora/`，通过 **`python -m distilbert.main`** 调用。
+| 路径 | 作用 |
+|------|------|
+| `main.py`、`models.py`、`utils.py` | 训练入口与数据/模型 |
+| `scripts/run_train_bsub.sh` | 计算节点执行（由 `submit_bsub.sh` 调度） |
+| `scripts/submit_bsub.sh` | 提交**单个** LSF 作业（`bsub`） |
+| `scripts/watch_metrics.sh` | 轮询 `METRICS_DIR` 下 `train.csv` / `test.csv` 尾部 |
+| `results/` | 单次默认输出（见该目录下 `README.md`） |
 
----
+工作目录必须是仓库根：`python -m distilbert.main`。
 
-## 与 `deepseek/results/` 结构对应（概念上）
+## 全因子网格（推荐）
 
-| 本目录 | DeepSeek SFT |
-|--------|----------------|
-| `distilbert/results/tuning_logs/` | `deepseek/results/tuning_logs/` |
-| `distilbert/results/final_loRA/`、`final_mLoRA/` | `deepseek/results/final_sft/` |
-| 网格实验子目录 | `deepseek/results/sft_grid/` |
-
----
-
-## 0. 上传、提交、下载（与根 README §0 形式一致）
-
-### ① 本机上传到服务器（Git Bash）
-
-```bash
-cd /d/GitHub_Code/Manifold-Lora
-bash scripts/upload.sh
-```
-
-`upload.sh` / `upload.ps1` 会递归上传整个 **`distilbert/`** 目录及根目录共享的 `lora.py` / `mlora.py` / `optimizers.py` 等。
-
-### ② 服务器：修正换行并提交
+**每个超参组合一个 `bsub` 作业**，网格定义只在 `distilbert_autogrid/config.py`：
 
 ```bash
 cd ~/Manifold-Lora
-sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh deepseek/scripts/*.sh
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
+bash distilbert_autogrid/run_grid_bsub.sh
+```
+
+本地顺序跑（不占队列）：`python -m distilbert_autogrid.run_grid`（见 [distilbert_autogrid/README.md](../distilbert_autogrid/README.md)）。
+
+## 单次训练（对比 / 烟测）
+
+```bash
+cd ~/Manifold-Lora
+sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh
 bash distilbert/scripts/submit_bsub.sh
 ```
 
-- 默认 **`METRICS_DIR=$PWD/distilbert/results`**，指标为 `distilbert/results/train.csv`、`test.csv`。
-- 查看任务：`bjobs`；日志：`cat JOBID.out` / `cat JOBID.err`。
+默认 `METRICS_DIR=$PWD/distilbert/results`。可用环境变量覆盖：`EPOCHS`、`LR`、`LORA_R`、`LORA_ALPHA`、`WEIGHT_DECAY`、`METRICS_DIR` 等（见 `submit_bsub.sh`）。
 
-### ③ 本机拉回 CSV（PowerShell 示例）
-
-```powershell
-cd D:\GitHub_Code\Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
-scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/test.csv distilbert/results/
-```
-
-（IP 按学校服务器实际修改。）
-
----
-
-## 1. 实时监控指标
+## 本机试跑（非 bsub）
 
 ```bash
-cd ~/Manifold-Lora
-bash distilbert/scripts/watch_metrics.sh
+python -m distilbert.main --model_name distilbert-base-uncased \
+  --dataset_name glue --dataset_config sst2 --epochs 1 --batch_size 4 \
+  --metrics_dir distilbert/results
 ```
 
-子目录：
-
-```bash
-METRICS_DIR=distilbert/results/某实验子目录 bash distilbert/scripts/watch_metrics.sh
-```
-
----
-
-## 2. 默认配置说明（与根 README §2 形式对齐）
-
-- 模型：`distilbert-base-uncased`
-- 数据：GLUE `sst2`，字段 `sentence`
-- 超参：见 `distilbert/scripts/run_train_bsub.sh` 与 `main.py` 中 `argparse` 默认值
-- 指标列：
-  - `train.csv`：`iteration,train_loss,train_accuracy`
-  - `test.csv`：`iteration,test_loss,test_accuracy`
-
----
-
-## 3. 学习率网格（Grid Search）
-
-```bash
-cd ~/Manifold-Lora
-sed -i 's/\r$//' distilbert/scripts/*.sh
-bash distilbert/scripts/gs_lr_lora.sh
-# 或
-bash distilbert/scripts/gs_lr_mlora.sh
-```
-
----
-
-## 4. 本机试跑（非 bsub）
-
-在仓库根目录执行：
-
-```bash
-cd D:\GitHub_Code\Manifold-Lora
-python -m distilbert.main --model_name distilbert-base-uncased ^
-  --dataset_name glue --dataset_config sst2 --epochs 1 --batch_size 4 --metrics_dir distilbert/results
-```
+上传服务器、拉回 CSV 等流程与仓库根 [README.md](../README.md) 一致；DistilBERT 网格请同步上传 **`distilbert_autogrid/`**（见 `scripts/upload.sh`）。

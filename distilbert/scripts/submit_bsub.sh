@@ -18,13 +18,16 @@ export EPOCHS="${EPOCHS:-}"
 export BATCH_SIZE="${BATCH_SIZE:-}"
 export GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-}"
 export LR="${LR:-}"
+export WEIGHT_DECAY="${WEIGHT_DECAY:-}"
+export ADAM_BETA1="${ADAM_BETA1:-}"
+export ADAM_BETA2="${ADAM_BETA2:-}"
 export LORA_TYPE="${LORA_TYPE:-}"
 export LORA_R="${LORA_R:-}"
 export LORA_ALPHA="${LORA_ALPHA:-}"
 export LORA_DROPOUT="${LORA_DROPOUT:-}"
 
 RUN_CMD="bash $SCRIPT_DIR/run_train_bsub.sh '$MODEL_NAME' '$METRICS_DIR'"
-for v in EPOCHS BATCH_SIZE GRAD_ACCUM_STEPS LR LORA_TYPE LORA_R LORA_ALPHA LORA_DROPOUT; do
+for v in EPOCHS BATCH_SIZE GRAD_ACCUM_STEPS LR WEIGHT_DECAY ADAM_BETA1 ADAM_BETA2 LORA_TYPE LORA_R LORA_ALPHA LORA_DROPOUT; do
   eval "val=\${$v}"
   if [[ -n "${val:-}" ]]; then
     RUN_CMD="export $v='$val'; $RUN_CMD"
