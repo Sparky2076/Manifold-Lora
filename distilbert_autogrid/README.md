@@ -67,6 +67,7 @@ export CONDA_ROOT="$HOME/miniconda3"   # 或 anaconda3、mambaforge 等，按你
 ```bash
 tmux new -s grid
 cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
 sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh
 bash distilbert_autogrid/run_grid_bsub.sh
 ```
