@@ -93,6 +93,8 @@ export CONDA_ROOT="$HOME/miniconda3"
 
 大批量提交时用 **tmux**，SSH 断开后**提交循环一般会继续跑**。
 
+若提示 **`Command 'tmux' not found`**：登录节点**未装 tmux**（个人一般**不能** `apt install`，需机房装或 `module load`）。请用下面 **「无 tmux」** 两选一。
+
 | 操作 | 命令或按键 |
 |------|------------|
 | **新建会话并起名 `grid`** | `tmux new -s grid` |
@@ -110,7 +112,34 @@ bash scripts/server_submit_distilbert_grid.sh          # 默认续跑 skip
 # 或： bash scripts/server_submit_distilbert_grid_force.sh   # GRID_RESUME=0 全部重交
 ```
 
-不用 tmux 时：`nohup bash distilbert_autogrid/run_grid_bsub.sh > run_grid_bsub.log 2>&1 &`（`tail -f run_grid_bsub.log`）。
+### 无 tmux 时（未安装或不可用）
+
+**1）`screen`（若已安装：`which screen`）**
+
+```bash
+screen -S grid
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+export GRID_MAX_RUN=5
+export GRID_MAX_PEND=1
+export GRID_POLL_SEC=30
+bash scripts/server_submit_distilbert_grid.sh
+# detach：Ctrl+A，松开后按 D     重连：screen -r grid
+```
+
+**2）`nohup`（最常见，无需额外软件）**
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+export GRID_MAX_RUN=5
+export GRID_MAX_PEND=1
+export GRID_POLL_SEC=30
+nohup bash scripts/server_submit_distilbert_grid.sh > grid_submit.log 2>&1 &
+tail -f grid_submit.log
+```
+
+断线后进程仍在；勿关登录节点上该进程（勿 `kill`）。查看：`tail -f grid_submit.log`。
 
 ---
 
