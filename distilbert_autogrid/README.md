@@ -140,15 +140,21 @@ bash scripts/server_submit_distilbert_grid.sh          # 默认续跑 skip
 
 （旧版曾写「`GRID_MAX_PEND=2`」是因为当时用 **`>=` 阈值**；现已改为 **`>`，数字=「最多允许几个」，故最多 1 个 PEND 应设 **`GRID_MAX_PEND=1`。**）
 
-示例（**最多约 5 个 RUN、最多 1 个 PEND**）：
+示例（**最多约 5 个 RUN、最多 1 个 PEND** + **tmux**，SSH 断线后提交循环一般仍继续）：
 
 ```bash
+tmux new -s grid
+cd ~/Manifold-Lora
 export CONDA_ROOT="$HOME/miniconda3"
 export GRID_MAX_RUN=5
 export GRID_MAX_PEND=1
 export GRID_POLL_SEC=30
 bash scripts/server_submit_distilbert_grid.sh
 ```
+
+- **暂时离开（detach）**：`Ctrl+B`，松开后按 **小写 `d`**  
+- **断线后再连上**：`tmux attach -t grid`  
+- **列出会话**：`tmux ls`
 
 ---
 
