@@ -8,6 +8,10 @@
 #
 # Optional env: RESULTS_ROOT, EPOCHS, QUEUE, LORA_TYPE, LORA_DROPOUT, BATCH_SIZE, GRAD_ACCUM_STEPS
 # Resume: GRID_RESUME=1 (default) skips combos whose test.csv already has >= EPOCHS eval rows; GRID_RESUME=0 submits all.
+# Throttle (avoid cluster Pending limit / permission denied): before each bsub, wait until bjobs ok.
+#   GRID_MAX_RUN=N     (0=off) wait while RUN count >= N → caps concurrent RUN (e.g. N=5 → at most 5 RUN).
+#   GRID_MAX_PEND=M    (0=off) wait while PEND count >= M → e.g. M=2 allows at most 1 PEND; M=1 only submits when PEND=0.
+#   GRID_POLL_SEC=30   seconds between bjobs checks while waiting.
 
 set -euo pipefail
 
@@ -17,6 +21,34 @@ cd "$PROJECT_DIR"
 
 RESULTS_ROOT="${RESULTS_ROOT:-$PROJECT_DIR/distilbert_autogrid/results}"
 GRID_RESUME="${GRID_RESUME:-1}"
+GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
+GRID_MAX_PEND="${GRID_MAX_PEND:-0}"
+GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
+
+# Wait until bjobs counts allow another submission (LSF: STAT column RUN / PEND).
+_grid_wait_slot() {
+  [[ "${GRID_MAX_RUN}" == "0" && "${GRID_MAX_PEND}" == "0" ]] && return 0
+  command -v bjobs >/dev/null 2>&1 || return 0
+  local u="${USER:-${LOGNAME:-}}"
+  [[ -z "$u" ]] && return 0
+  while true; do
+    local run_n pend_n
+    run_n=$(bjobs -u "$u" 2>/dev/null | awk 'NR>1 && $3 ~ /^RUN/ {c++} END{print c+0}')
+    pend_n=$(bjobs -u "$u" 2>/dev/null | awk 'NR>1 && $3 ~ /^PEND/ {c++} END{print c+0}')
+    local need_wait=0
+    if [[ "${GRID_MAX_RUN}" =~ ^[0-9]+$ ]] && [[ "${GRID_MAX_RUN}" -gt 0 ]] && [[ "${run_n}" -ge "${GRID_MAX_RUN}" ]]; then
+      need_wait=1
+    fi
+    if [[ "${GRID_MAX_PEND}" =~ ^[0-9]+$ ]] && [[ "${GRID_MAX_PEND}" -gt 0 ]] && [[ "${pend_n}" -ge "${GRID_MAX_PEND}" ]]; then
+      need_wait=1
+    fi
+    if [[ "$need_wait" -eq 0 ]]; then
+      return 0
+    fi
+    echo "[grid] throttle: RUN=${run_n} PEND=${pend_n} (limits RUN<${GRID_MAX_RUN} PEND<${GRID_MAX_PEND}) sleep ${GRID_POLL_SEC}s ..." >&2
+    sleep "${GRID_POLL_SEC}"
+  done
+}
 export EPOCHS="${EPOCHS:-$(python -c "from distilbert_autogrid.config import EPOCHS_DEFAULT; print(EPOCHS_DEFAULT)")}"
 export ADAM_BETA1="${ADAM_BETA1:-$(python -c "from distilbert_autogrid.config import ADAM_BETA1_FIXED; print(ADAM_BETA1_FIXED)")}"
 export ADAM_BETA2="${ADAM_BETA2:-$(python -c "from distilbert_autogrid.config import ADAM_BETA2_FIXED; print(ADAM_BETA2_FIXED)")}"
@@ -48,6 +80,7 @@ for lr, r, alpha, wd in iter_grid():
     fi
   fi
 
+  _grid_wait_slot
   bash distilbert/scripts/submit_bsub.sh
   sleep 2
 done

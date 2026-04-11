@@ -126,7 +126,25 @@ bash scripts/server_submit_distilbert_grid.sh          # 默认续跑 skip
 
 **取消队列里的作业**：`bjobs` 查看 JobID，再 **`bkill <JOBID>`**（或集群允许的批量命令，如 `bkill 0`，以你们 LSF 说明为准）。
 
-**Pending 节流**：出现 `Pending job threshold reached. Retrying in 60 seconds...` 为站点对同时 **PEND** 作业数限制，属正常；脚本会等待后继续提交。
+**Pending 节流**：出现 `Pending job threshold reached. Retrying in 60 seconds...` 为站点对同时 **PEND** 作业数限制，属正常；集群侧会重试；若仍出现 **`User permission denied`**，需减少同时占用队列的作业数。
+
+**自节流（`run_grid_bsub.sh` 内建）**：每次 `bsub` **前**用 `bjobs` 看你的 `RUN` / `PEND` 数量，超限则**先 sleep 再试**，减轻「一次交太多 PEND」触顶。
+
+| 变量 | 含义 |
+|------|------|
+| `GRID_MAX_RUN` | 默认 `0`（关闭）。设为 **`5`** 表示：**RUN 数 ≥ 5** 时暂停提交，直到有作业结束 → 最多约 **5 个同时 RUN**。 |
+| `GRID_MAX_PEND` | 默认 `0`（关闭）。设为 **`2`** 表示：**PEND 数 ≥ 2** 时暂停 → 队列里最多堆 **1** 个 PEND。设为 **`1`** 则更严：仅当 **PEND=0** 时才交下一个。 |
+| `GRID_POLL_SEC` | 轮询间隔秒数，默认 `30`。 |
+
+示例（**最多约 5 个 RUN、最多 1 个 PEND**）：
+
+```bash
+export CONDA_ROOT="$HOME/miniconda3"
+export GRID_MAX_RUN=5
+export GRID_MAX_PEND=2
+export GRID_POLL_SEC=30
+bash scripts/server_submit_distilbert_grid.sh
+```
 
 ---
 
@@ -148,6 +166,9 @@ bash scripts/server_submit_distilbert_grid.sh          # 默认续跑 skip
 | `GRAD_ACCUM_STEPS` | 默认 `8` |
 | `CONDA_ROOT` / `CONDA_BASE` | Conda 根目录 |
 | `CONDA_ENV_NAME` | 默认 `torch` |
+| `GRID_MAX_RUN` | 见上文「自节流」；`0` 关闭 |
+| `GRID_MAX_PEND` | 见上文；`0` 关闭 |
+| `GRID_POLL_SEC` | 自节流轮询间隔，默认 `30` |
 
 ---
 
