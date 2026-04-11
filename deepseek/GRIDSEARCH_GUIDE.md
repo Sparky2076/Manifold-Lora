@@ -85,8 +85,9 @@ coarse 的学习率网格：
 
 - **LoRA**：
   - round2（6000 step）最佳：`lr=3.5e-5`，`eval_loss=1.3038`
-  - round3（步数 sweep）最佳：`lr=3.5e-5 + max_steps=12000`，`eval_loss=1.2843`
-  - 详见：`deepseek/results/tuning_logs/sft_lora_round2.md`、`sft_lora_round3.md`
+  - round3（步数 sweep）最佳：`lr=3.5e-5 + max_steps=12000`，`eval_loss=1.2843`（**当前全局最优**）
+  - round4（固定 `max_steps=10000`，lr 细扫）最佳：`lr=3.75e-5`，`eval_loss=1.2879`（在 10k 步约束下优于 `3.25e-5/3.5e-5`，但仍略逊于 round3 的 12k 点）
+  - 详见：`deepseek/results/tuning_logs/sft_lora_round2.md`、`sft_lora_round3.md`、`sft_lora_round4.md`
 
 - **mLoRA**：
   - round2（6000 step）最佳：`lr=1.1e-4`，`eval_loss=1.3520`
@@ -110,6 +111,8 @@ coarse 的学习率网格：
 
 - **LoRA**：`lr=3.5e-5, r=8, alpha=16, dropout=0.05`
 - **max_steps**：建议先用 **`12000`**（已验证更优）；若后续仍单调下降，可继续加到 15000–18000 观察平台
+
+可选：若你希望进一步验证 round4 的 `3.75e-5` 是否能在更长步数上超过 `3.5e-5 @ 12000`，建议单独提交 **`lr=3.75e-5, max_steps=12000`**（或 15000）做对照。
 
 执行方式参考对应脚本：
 
