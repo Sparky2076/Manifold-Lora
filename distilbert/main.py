@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import sys
+import time
 
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
@@ -23,6 +25,46 @@ from optimizers import AdamWConfig, get_optimizer
 def set_seed(seed: int) -> None:
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+
+def _cuda_transient_error(exc: BaseException) -> bool:
+    m = str(exc).lower()
+    return "busy" in m or "unavailable" in m
+
+
+def ensure_cuda_ready(device: torch.device) -> None:
+    """Probe CUDA before loading a large model; retry on transient 'busy/unavailable' driver errors."""
+    if device.type != "cuda" or not torch.cuda.is_available():
+        return
+    retries = max(1, int(os.environ.get("TRAIN_CUDA_RETRY", "8") or "8"))
+    sleep_sec = max(1.0, float(os.environ.get("TRAIN_CUDA_RETRY_SEC", "20") or "20"))
+    idx = device.index if device.index is not None else 0
+    last: BaseException | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            torch.cuda.set_device(idx)
+            torch.cuda.empty_cache()
+            # Small allocation + sync — same class of failure as model.to(), but cheap to retry.
+            x = torch.ones(512, 512, device=device)
+            del x
+            torch.cuda.synchronize()
+            print(f"[CUDA] device cuda:{idx} ready (after {attempt} attempt(s)).", flush=True)
+            return
+        except RuntimeError as e:
+            last = e
+            if not _cuda_transient_error(e):
+                raise
+            print(
+                f"[CUDA] GPU not ready ({attempt}/{retries}): {e}\n"
+                f"      Set TRAIN_CUDA_RETRY / TRAIN_CUDA_RETRY_SEC to tune; "
+                f"or check nvidia-smi / exclusive GPU scheduling on the cluster.",
+                file=sys.stderr,
+                flush=True,
+            )
+            if attempt < retries:
+                time.sleep(sleep_sec)
+    assert last is not None
+    raise last
 
 
 @torch.no_grad()
@@ -266,6 +308,9 @@ def main():
     use_device_map = args.device_map is not None
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    if device.type == "cuda":
+        ensure_cuda_ready(device)
+
     model_cfg = ModelLoadConfig(
         model_name=args.model_name,
         num_labels=args.num_labels,
@@ -276,7 +321,17 @@ def main():
     model, tokenizer = load_model_and_tokenizer(model_cfg)
 
     if not use_device_map:
-        model.to(device)
+        try:
+            model.to(device)
+        except RuntimeError as e:
+            if _cuda_transient_error(e):
+                print(
+                    "[CUDA] model.to() failed after probe succeeded; another process may have grabbed the GPU, "
+                    "or the device is in a bad state. Check nvidia-smi on the compute node and cluster GPU binding.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            raise
 
     train_loader, eval_loader = build_dataloaders(
         tokenizer=tokenizer,
