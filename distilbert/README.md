@@ -10,7 +10,7 @@
 | `scripts/run_train_bsub.sh` | 计算节点执行（由 `submit_bsub.sh` 调度） |
 | `scripts/submit_bsub.sh` | 提交**单个** LSF 作业（`bsub`） |
 | `scripts/watch_metrics.sh` | 轮询 `METRICS_DIR` 下 `train.csv` / `test.csv` 尾部 |
-| `../scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀批量 `bkill` 网格作业（与网格 README 一致） |
+| `../scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀批量 `bkill` 网格作业；**说明见** [distilbert_autogrid/README.md](../distilbert_autogrid/README.md) 中「批量终止网格 LSF 作业」一节 |
 | `results/` | 单次默认输出（见该目录下 `README.md`） |
 
 工作目录必须是仓库根：`python -m distilbert.main`。

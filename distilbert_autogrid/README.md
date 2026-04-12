@@ -153,7 +153,7 @@ tail -f grid_submit.log
 
 **停止「自动 bsub」脚本**：在跑 `server_submit_*.sh` 或 `run_grid_bsub.sh` 的终端按 **`Ctrl+C`** → 只结束**提交循环**，**不会**取消已提交的作业。
 
-**取消队列里的作业**：`bjobs` 查看 JobID，再 **`bkill <JOBID>`**。网格作业名形如 `distilbert_grid_*`，也可用仓库脚本：**`bash scripts/kill_distilbert_grid_bjobs.sh`**（`--yes` 不询问；或集群允许的批量命令，以你们 LSF 说明为准）。
+**取消队列里的作业**：可手动 `bjobs` → `bkill <JOBID>`，或用仓库提供的批量脚本（见下节）。
 
 **Pending 节流**：出现 `Pending job threshold reached. Retrying in 60 seconds...` 为站点对同时 **PEND** 作业数限制，属正常；集群侧会重试；若仍出现 **`User permission denied`**，需减少同时占用队列的作业数。
 
@@ -182,6 +182,34 @@ bash scripts/server_submit_distilbert_grid.sh
 - **暂时离开（detach）**：`Ctrl+B`，松开后按 **小写 `d`**  
 - **断线后再连上**：`tmux attach -t grid`  
 - **列出会话**：`tmux ls`
+
+---
+
+## 批量终止网格 LSF 作业：`scripts/kill_distilbert_grid_bjobs.sh`
+
+按作业名前缀 **`distilbert_grid`**（与 `run_grid_bsub.sh` 里 `JOB_NAME=distilbert_grid_<组合>`、`bsub -J` 一致）筛选**当前用户**未结束作业，再 **`bkill`**。在**登录节点**、仓库根目录执行：
+
+```bash
+cd ~/Manifold-Lora
+bash scripts/kill_distilbert_grid_bjobs.sh
+```
+
+- 默认会先打印待杀的 JobID，**需输入 `y` 确认**。
+- **不询问直接杀**：`bash scripts/kill_distilbert_grid_bjobs.sh --yes` 或 `GRID_KILL_YES=1 bash scripts/kill_distilbert_grid_bjobs.sh`。
+
+| 环境变量 | 含义 |
+|----------|------|
+| `GRID_JOB_PREFIX` | 默认 `distilbert_grid`；只杀 `JOB_NAME` 以该字符串**开头**的作业 |
+| `GRID_KILL_YES` | 设为 `1` 时等同 `--yes` |
+
+**与「停提交脚本」的区别**：
+
+| 操作 | 作用 |
+|------|------|
+| `kill` / `Ctrl+C` 结束 `run_grid_bsub.sh` | 只停**本机循环**，**不会**撤队列里已 `bsub` 的作业 |
+| `kill_distilbert_grid_bjobs.sh` | 撤 **LSF 里**仍排队或运行中的网格训练作业 |
+
+**依赖**：需要 `bjobs -o 'jobid job_name'`（常见 LSF 9+）。若报错，请手动：`bjobs -u $USER -w` 找到 `distilbert_grid` 相关行，再 `bkill <JOBID>`。
 
 ---
 
