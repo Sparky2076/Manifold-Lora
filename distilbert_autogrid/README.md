@@ -163,11 +163,9 @@ tail -f grid_submit.log
 
 | 变量 | 含义 |
 |------|------|
-| `GRID_MAX_RUN` | 默认 `0`（关闭）。设为 **`5`** 表示：**RUN 数 > 5** 时暂停（即 **RUN≤5** 才继续交）→ 同时 **最多约 5 个 RUN**。 |
-| `GRID_MAX_PEND` | 默认 `0`（关闭）。设为 **`1`** 表示：**PEND 数 > 1** 时暂停（即 **PEND≤1**）→ **最多 1 个在排队**。 |
+| `GRID_MAX_RUN` | 默认 `0`（关闭）。设为 **`5`**：**RUN 数 > 5** 时暂停（即最多 **5 个 RUN**；5 RUN + 0 PEND 时仍可再交 1 个进 PEND，凑满「5 跑 + 1 等」）。 |
+| `GRID_MAX_PEND` | 默认 `0`（关闭）。设为 **`1`**：**PEND 数 ≥ 1** 时暂停 → **只有 PEND=0 时才 `bsub`**，避免连续提交把 PEND 堆成 2（与「最多 1 个在等」一致）。 |
 | `GRID_POLL_SEC` | 轮询间隔秒数，默认 `30`。 |
-
-（旧版曾写「`GRID_MAX_PEND=2`」是因为当时用 **`>=` 阈值**；现已改为 **`>`，数字=「最多允许几个」，故最多 1 个 PEND 应设 **`GRID_MAX_PEND=1`。**）
 
 示例（**最多约 5 个 RUN、最多 1 个 PEND** + **tmux**，SSH 断线后提交循环一般仍继续）：
 
@@ -208,6 +206,7 @@ bash scripts/server_submit_distilbert_grid.sh
 | `GRID_MAX_RUN` | 见上文「自节流」；`0` 关闭 |
 | `GRID_MAX_PEND` | 见上文；`0` 关闭 |
 | `GRID_POLL_SEC` | 自节流轮询间隔，默认 `30` |
+| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 `3`（给 `bjobs` 更新时间，减轻连交） |
 
 ---
 

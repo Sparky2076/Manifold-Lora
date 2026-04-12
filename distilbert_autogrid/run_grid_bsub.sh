@@ -9,8 +9,8 @@
 # Optional env: RESULTS_ROOT, EPOCHS, QUEUE, LORA_TYPE, LORA_DROPOUT, BATCH_SIZE, GRAD_ACCUM_STEPS
 # Resume: GRID_RESUME=1 (default) skips combos whose test.csv already has >= EPOCHS eval rows; GRID_RESUME=0 submits all.
 # Throttle (avoid cluster Pending limit / permission denied): before each bsub, wait until bjobs ok.
-#   GRID_MAX_RUN=N     (0=off) 「最多 N 个 RUN」→ wait while RUN count > N  （例 N=5：RUN≤5 时才继续交）
-#   GRID_MAX_PEND=M    (0=off) 「最多 M 个 PEND」→ wait while PEND count > M  （例 M=1：PEND≤1，即最多 1 个在排队）
+#   GRID_MAX_RUN=N     (0=off) 最多 N 个 RUN → wait while RUN > N（例 N=5：仅当 RUN≤5 时可再交；5 RUN+0 PEND 时仍可交第 6 个进 PEND）
+#   GRID_MAX_PEND=M    (0=off) 最多 M 个 PEND → wait while PEND >= M（例 M=1：仅当 PEND=0 时才交，避免连点 bsub 堆出 2 个 PEND）
 #   GRID_POLL_SEC=30   seconds between bjobs checks while waiting.
 
 set -euo pipefail
@@ -24,6 +24,7 @@ GRID_RESUME="${GRID_RESUME:-1}"
 GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
 GRID_MAX_PEND="${GRID_MAX_PEND:-0}"
 GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
+SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-3}"
 
 # Wait until bjobs counts allow another submission (LSF: STAT column RUN / PEND).
 _grid_wait_slot() {
@@ -39,13 +40,13 @@ _grid_wait_slot() {
     if [[ "${GRID_MAX_RUN}" =~ ^[0-9]+$ ]] && [[ "${GRID_MAX_RUN}" -gt 0 ]] && [[ "${run_n}" -gt "${GRID_MAX_RUN}" ]]; then
       need_wait=1
     fi
-    if [[ "${GRID_MAX_PEND}" =~ ^[0-9]+$ ]] && [[ "${GRID_MAX_PEND}" -gt 0 ]] && [[ "${pend_n}" -gt "${GRID_MAX_PEND}" ]]; then
+    if [[ "${GRID_MAX_PEND}" =~ ^[0-9]+$ ]] && [[ "${GRID_MAX_PEND}" -gt 0 ]] && [[ "${pend_n}" -ge "${GRID_MAX_PEND}" ]]; then
       need_wait=1
     fi
     if [[ "$need_wait" -eq 0 ]]; then
       return 0
     fi
-    echo "[grid] throttle: RUN=${run_n} PEND=${pend_n} (max RUN=${GRID_MAX_RUN} max PEND=${GRID_MAX_PEND}; wait if RUN>max_run or PEND>max_pend) sleep ${GRID_POLL_SEC}s ..." >&2
+    echo "[grid] throttle: RUN=${run_n} PEND=${pend_n} (RUN: wait if >${GRID_MAX_RUN}; PEND: wait if >=${GRID_MAX_PEND}) sleep ${GRID_POLL_SEC}s ..." >&2
     sleep "${GRID_POLL_SEC}"
   done
 }
@@ -82,7 +83,7 @@ for lr, r, alpha, wd in iter_grid():
 
   _grid_wait_slot
   bash distilbert/scripts/submit_bsub.sh
-  sleep 2
+  sleep "${SUBMIT_SLEEP_SEC}"
 done
 
 echo "Done. Submitted grid jobs; results under $RESULTS_ROOT"
