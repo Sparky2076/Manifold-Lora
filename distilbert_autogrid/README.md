@@ -153,7 +153,7 @@ tail -f grid_submit.log
 
 **停止「自动 bsub」脚本**：在跑 `server_submit_*.sh` 或 `run_grid_bsub.sh` 的终端按 **`Ctrl+C`** → 只结束**提交循环**，**不会**取消已提交的作业。
 
-**取消队列里的作业**：`bjobs` 查看 JobID，再 **`bkill <JOBID>`**（或集群允许的批量命令，如 `bkill 0`，以你们 LSF 说明为准）。
+**取消队列里的作业**：`bjobs` 查看 JobID，再 **`bkill <JOBID>`**。网格作业名形如 `distilbert_grid_*`，也可用仓库脚本：**`bash scripts/kill_distilbert_grid_bjobs.sh`**（`--yes` 不询问；或集群允许的批量命令，以你们 LSF 说明为准）。
 
 **Pending 节流**：出现 `Pending job threshold reached. Retrying in 60 seconds...` 为站点对同时 **PEND** 作业数限制，属正常；集群侧会重试；若仍出现 **`User permission denied`**，需减少同时占用队列的作业数。
 
@@ -206,7 +206,7 @@ bash scripts/server_submit_distilbert_grid.sh
 | `GRID_MAX_RUN` | 见上文「自节流」；`0` 关闭 |
 | `GRID_MAX_PEND` | 见上文；`0` 关闭 |
 | `GRID_POLL_SEC` | 自节流轮询间隔，默认 `30` |
-| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 `3`（给 `bjobs` 更新时间，减轻连交） |
+| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 **`900`（15 分钟）**，减轻同节点 GPU 扎堆；临时加快可设 `SUBMIT_SLEEP_SEC=30` |
 
 ---
 
@@ -240,6 +240,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `distilbert_autogrid/aggregate_results.py` | 生成 `summary.csv` |
 | `distilbert/scripts/submit_bsub.sh` | 单次分类 `bsub` |
 | `scripts/upload.sh`、`upload.ps1` | 本机上传到集群（仅 DistilBERT 相关） |
+| `scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀 `distilbert_grid*` 批量 `bkill` |
 | `scripts/server_submit_distilbert_grid.sh` | 服务器：`sed` + `CONDA_ROOT` + `run_grid_bsub.sh` |
 | `scripts/server_submit_distilbert_grid_force.sh` | 同上，`GRID_RESUME=0` |
 | `scripts/commit_and_push.sh` | 交互式推 GitHub |
