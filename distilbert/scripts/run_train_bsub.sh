@@ -63,6 +63,11 @@ source "${CONDA_SH}"
 CONDA_ENV_NAME="${CONDA_ENV_NAME:-torch}"
 conda activate "${CONDA_ENV_NAME}"
 
+# GPU：便于排查「busy or unavailable」；LSF 部分站点会设置 CUDA_VISIBLE_DEVICES / LSB_*GPU*
+export CUDA_DEVICE_ORDER="${CUDA_DEVICE_ORDER:-PCI_BUS_ID}"
+echo "[run_train_bsub] host=$(hostname) CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}" >&2
+command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | head -8 >&2 || echo "[run_train_bsub] nvidia-smi 不可用" >&2
+
 # LSF 网格：若尚未有 run_meta.json（本地 run_grid.py 会预写），则从环境变量写入，供 aggregate_results 使用
 META_PATH="$METRICS_DIR/run_meta.json"
 if [[ ! -f "$META_PATH" ]] && [[ -n "${METRICS_DIR:-}" ]] && [[ "$METRICS_DIR" != "." ]]; then
