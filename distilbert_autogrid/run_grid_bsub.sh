@@ -12,6 +12,7 @@
 #   GRID_MAX_RUN=N     (0=off) 最多 N 个 RUN → wait while RUN > N（例 N=5：仅当 RUN≤5 时可再交；5 RUN+0 PEND 时仍可交第 6 个进 PEND）
 #   GRID_MAX_PEND=M    (0=off) 最多 M 个 PEND → wait while PEND >= M（例 M=1：仅当 PEND=0 时才交，避免连点 bsub 堆出 2 个 PEND）
 #   GRID_POLL_SEC=30   seconds between bjobs checks while waiting.
+#   SUBMIT_SLEEP_SEC=900  default: sleep 15 minutes after each bsub (reduce same-node GPU pile-up); override per run.
 
 set -euo pipefail
 
@@ -24,7 +25,7 @@ GRID_RESUME="${GRID_RESUME:-1}"
 GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
 GRID_MAX_PEND="${GRID_MAX_PEND:-0}"
 GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
-SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-3}"
+SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-900}"
 
 # Wait until bjobs counts allow another submission (LSF: STAT column RUN / PEND).
 _grid_wait_slot() {

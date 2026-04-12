@@ -27,6 +27,7 @@ scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/commit_and_push.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid_force.sh" \
+    "$PROJECT_DIR/scripts/kill_distilbert_grid_bjobs.sh" \
     "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 
 echo "上传完成。"
