@@ -257,12 +257,13 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 | `LORA_DROPOUT` | 默认 `0.05` |
 | `BATCH_SIZE` | 默认 `4` |
 | `GRAD_ACCUM_STEPS` | 默认 `8` |
+| `EXCLUDE_HOSTS` | 默认 `gpu17`；传给 `submit_bsub.sh` 作为主机过滤（逗号分隔，如 `gpu17,gpu18`） |
 | `CONDA_ROOT` / `CONDA_BASE` | Conda 根目录 |
 | `CONDA_ENV_NAME` | 默认 `torch` |
 | `GRID_MAX_RUN` | 见上文「自节流」；`0` 关闭 |
 | `GRID_MAX_PEND` | 见上文；`0` 关闭 |
 | `GRID_POLL_SEC` | 自节流轮询间隔，默认 `30` |
-| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 **`600`（10 分钟）**，减轻同节点 GPU 扎堆；临时加快可设 `SUBMIT_SLEEP_SEC=30` |
+| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 **`300`（5 分钟）**，减轻同节点 GPU 扎堆；临时加快可设 `SUBMIT_SLEEP_SEC=30` |
 
 ---
 

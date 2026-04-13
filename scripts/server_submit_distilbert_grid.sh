@@ -14,8 +14,8 @@
 #
 # 可选环境变量（传给 distilbert_autogrid/run_grid_bsub.sh / submit_bsub）：
 #   CONDA_ROOT / CONDA_BASE / CONDA_ENV_NAME   计算节点激活 conda（批作业必设 CONDA_ROOT）
-#   EPOCHS  QUEUE  RESULTS_ROOT  GRID_RESUME   LORA_TYPE  LORA_DROPOUT
-#   BATCH_SIZE  GRAD_ACCUM_STEPS  SUBMIT_SLEEP_SEC（默认 600，两次 bsub 间隔 10 分钟）
+#   EPOCHS  QUEUE  RESULTS_ROOT  GRID_RESUME   LORA_TYPE  LORA_DROPOUT  EXCLUDE_HOSTS
+#   BATCH_SIZE  GRAD_ACCUM_STEPS  SUBMIT_SLEEP_SEC（默认 300，两次 bsub 间隔 5 分钟）
 #   PROJECT_DIR   仓库根（默认：本脚本所在目录的上一级）
 #
 # 网格定义：distilbert_autogrid/config.py

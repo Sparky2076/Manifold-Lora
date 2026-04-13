@@ -13,6 +13,7 @@ QUEUE="${QUEUE:-gpu}"
 NGPU=1
 MODEL_NAME="${MODEL_NAME:-distilbert-base-uncased}"
 METRICS_DIR="${METRICS_DIR:-$PROJECT_DIR/distilbert/results}"
+EXCLUDE_HOSTS="${EXCLUDE_HOSTS:-gpu17}"
 
 export EPOCHS="${EPOCHS:-}"
 export BATCH_SIZE="${BATCH_SIZE:-}"
@@ -37,12 +38,30 @@ for v in EPOCHS BATCH_SIZE GRAD_ACCUM_STEPS LR WEIGHT_DECAY ADAM_BETA1 ADAM_BETA
   fi
 done
 
+HOST_FILTER_OPT=()
+if [[ -n "${EXCLUDE_HOSTS// /}" ]]; then
+  host_expr=""
+  IFS=',' read -r -a _hosts <<< "$EXCLUDE_HOSTS"
+  for h in "${_hosts[@]}"; do
+    h="${h// /}"
+    [[ -z "$h" ]] && continue
+    if [[ -n "$host_expr" ]]; then
+      host_expr+=" && "
+    fi
+    host_expr+="hname!='${h}'"
+  done
+  if [[ -n "$host_expr" ]]; then
+    HOST_FILTER_OPT=(-R "select[${host_expr}]")
+  fi
+fi
+
 bsub -J "$JOB_NAME" \
   -o "%J.out" \
   -e "%J.err" \
   -q "$QUEUE" \
   -n 1 \
   -R "rusage[mem=32G]" \
+  "${HOST_FILTER_OPT[@]}" \
   -gpu "num=${NGPU}" \
   "$RUN_CMD"
 
