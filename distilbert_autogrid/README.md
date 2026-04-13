@@ -141,6 +141,32 @@ tail -f grid_submit.log
 
 断线后进程仍在；勿关登录节点上该进程（勿 `kill`）。查看：`tail -f grid_submit.log`。
 
+### nohup 场景：查找并停止 grid 提交脚本
+
+`nohup` 方式下，先定位仍在跑的 `run_grid_bsub.sh`：
+
+```bash
+pgrep -af run_grid_bsub
+```
+
+常见会看到两条（父/子 bash，来自脚本里的管道 `while`），可用下面命令确认：
+
+```bash
+ps -o pid,ppid,cmd -p <PID1>,<PID2>
+```
+
+优先结束**父进程**（`PPID` 不是另一个 `run_grid_bsub` 的那条）：
+
+```bash
+kill <PARENT_PID>
+pgrep -af run_grid_bsub
+```
+
+若仍残留，再 `kill <CHILD_PID>`（必要时 `kill -9`）。
+
+> 这只会停止「继续 `bsub` 的提交循环」，不会取消已进 LSF 队列的训练作业。
+> 若要撤队列中的网格作业，请用：`bash scripts/kill_distilbert_grid_bjobs.sh --yes`
+
 ---
 
 ## 网格提交脚本：续跑 vs 强交 vs 停止
