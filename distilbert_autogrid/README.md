@@ -136,6 +136,8 @@ export GRID_MAX_RUN=5
 export GRID_MAX_PEND=1
 export GRID_POLL_SEC=30
 nohup bash scripts/server_submit_distilbert_grid.sh > grid_submit.log 2>&1 &
+```
+```
 tail -f grid_submit.log
 ```
 
