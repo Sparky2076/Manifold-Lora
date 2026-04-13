@@ -19,7 +19,7 @@
 
 - **`main.py`**：在加载大模型前会对 CUDA 做短探测；若报 `busy/unavailable`，可按环境变量重试（默认多次、间隔约 20s）：`TRAIN_CUDA_RETRY`、`TRAIN_CUDA_RETRY_SEC`。
 - **`scripts/run_train_bsub.sh`**：作业开头会打印 `CUDA_VISIBLE_DEVICES` 与 `nvidia-smi -L`，便于对照 `.err`。
-- **全因子网格**：`run_grid_bsub.sh` 默认两次 `bsub` 之间 **`sleep` 5 分钟**（`SUBMIT_SLEEP_SEC=300`，减轻同节点 GPU 扎堆）；要改快交可临时设 `SUBMIT_SLEEP_SEC=30` 等。
+- **全因子网格**：`run_grid_bsub.sh` 默认两次 `bsub` 之间 **`sleep` 3 分钟**（`SUBMIT_SLEEP_SEC=180`，减轻同节点 GPU 扎堆）；要改快交可临时设 `SUBMIT_SLEEP_SEC=30` 等。
 - **提交节点过滤**：`distilbert/scripts/submit_bsub.sh` 默认 `EXCLUDE_HOSTS=gpu17`，避免把任务投到 `gpu17`；可覆盖为 `EXCLUDE_HOSTS=gpu17,gpu18` 或设空字符串关闭。
 
 ## 全因子网格（推荐）

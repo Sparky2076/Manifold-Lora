@@ -263,7 +263,7 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 | `GRID_MAX_RUN` | 见上文「自节流」；`0` 关闭 |
 | `GRID_MAX_PEND` | 见上文；`0` 关闭 |
 | `GRID_POLL_SEC` | 自节流轮询间隔，默认 `30` |
-| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 **`300`（5 分钟）**，减轻同节点 GPU 扎堆；临时加快可设 `SUBMIT_SLEEP_SEC=30` |
+| `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 **`180`（3 分钟）**，减轻同节点 GPU 扎堆；临时加快可设 `SUBMIT_SLEEP_SEC=30` |
 
 ---
 
