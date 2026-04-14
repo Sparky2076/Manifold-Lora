@@ -273,7 +273,7 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 python -m distilbert_autogrid.aggregate_results
 ```
 
-生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序）。
+生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序）。仓库中可跟踪该汇总文件（见 `results/.gitignore`）；逐组 `train.csv`/`test.csv` 仍默认不入库。结果解读示例见 [docs/distilbert_grid_snapshot.md](../docs/distilbert_grid_snapshot.md)。
 
 ---
 

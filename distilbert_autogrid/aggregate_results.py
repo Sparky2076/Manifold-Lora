@@ -7,7 +7,7 @@ import csv
 import json
 from pathlib import Path
 
-from distilbert_autogrid.config import RESULTS_ROOT
+from distilbert_autogrid.config import PROJECT_ROOT, RESULTS_ROOT
 
 
 def read_run_meta(run_dir: Path) -> dict | None:
@@ -140,7 +140,7 @@ def aggregate() -> int:
                 "last_val_acc": last_acc if last_acc is not None else "",
                 "last_val_loss": last_loss if last_loss is not None else "",
                 "last_iteration": last_it if last_it is not None else "",
-                "metrics_dir": str(run_dir),
+                "metrics_dir": run_dir.resolve().relative_to(PROJECT_ROOT).as_posix(),
                 "status": status,
             }
         )
