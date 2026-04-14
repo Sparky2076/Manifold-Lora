@@ -267,6 +267,38 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 
 ---
 
+## 精确补齐缺失组合（375 对照）
+
+当你想明确知道「还缺哪些组合」并只补交缺失项时：
+
+```bash
+python -m distilbert_autogrid.fill_missing_runs
+```
+
+会生成：`distilbert_autogrid/results/missing_runs.csv`，按 `config.py` 全网格（375）对照当前 `results/`，输出每条缺失记录的 `reason`（如 `missing_dir`、`missing_test`、`incomplete_test_rows`）。
+
+仅提交缺失项（不重交已完成）：
+
+```bash
+python -m distilbert_autogrid.fill_missing_runs --submit-bsub
+```
+
+- 脚本会按 `test.csv` 行数对照 `EPOCHS` 判定完成度；**已完成的 246 组不会再次提交**。
+- 提交仍走 `distilbert/scripts/submit_bsub.sh`，会继承 `EXCLUDE_HOSTS`（默认避开 `gpu17`）。
+- 可配节流：`--grid-max-run` / `--grid-max-pend` / `--grid-poll-sec`。
+- 提交间隔：`--submit-sleep-sec`（默认取环境变量 `SUBMIT_SLEEP_SEC`，当前默认 180 秒）。
+
+补交跑完后再汇总并合并到已有结果：
+
+```bash
+python -m distilbert_autogrid.aggregate_results
+python -m distilbert_autogrid.analyze_results
+```
+
+`summary.csv` 会自动包含旧结果 + 新补齐结果（按 `metrics_dir` 扫描聚合）。
+
+---
+
 ## 汇总
 
 ```bash
@@ -295,6 +327,7 @@ bash distilbert/scripts/watch_metrics.sh
 |------|------|
 | `distilbert_autogrid/run_grid_bsub.sh` | LSF 全因子网格，每组合一作业 |
 | `distilbert_autogrid/run_grid.py` | 本地顺序跑网格 |
+| `distilbert_autogrid/fill_missing_runs.py` | 对照 375 全网格生成 `missing_runs.csv`，并可仅补交缺失项 |
 | `distilbert_autogrid/aggregate_results.py` | 生成 `summary.csv` |
 | `distilbert_autogrid/analyze_results.py` | 从 `summary.csv` 生成 `docs/distilbert_grid_analysis.md` |
 | `distilbert/scripts/submit_bsub.sh` | 单次分类 `bsub` |
