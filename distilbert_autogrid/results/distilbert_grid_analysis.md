@@ -1,8 +1,8 @@
 # DistilBERT LoRA 网格结果分析
 
-由 `python -m distilbert_autogrid.analyze_results` 根据 [`distilbert_autogrid/results/summary.csv`](../distilbert_autogrid/results/summary.csv) 自动生成。
+由 `python -m distilbert_autogrid.analyze_results` 根据 [`summary.csv`](summary.csv) 自动生成。
 
-- **生成时间（UTC）**：2026-04-14 06:21:08Z
+- **生成时间（UTC）**：2026-04-14 06:45:00Z
 - **有效行数**：246（`status=ok` 且 `best_val_acc` 可解析）
 
 ## 整体指标（验证集 best_val_acc）

@@ -10,7 +10,7 @@ REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "上传到 $SERVER:~/$REMOTE_DIR/ （DistilBERT + distilbert_autogrid + 根模块 + scripts）"
+echo "上传到 $SERVER:~/$REMOTE_DIR/ （增量；默认排除 results/）"
 
 scp "$PROJECT_DIR/optimizers.py" \
     "$PROJECT_DIR/lora.py" \
@@ -19,8 +19,29 @@ scp "$PROJECT_DIR/optimizers.py" \
 
 [ -f "$PROJECT_DIR/requirements.txt" ] && scp "$PROJECT_DIR/requirements.txt" "$SERVER:~/$REMOTE_DIR/"
 
-scp -r "$PROJECT_DIR/distilbert" "$SERVER:~/$REMOTE_DIR/"
-scp -r "$PROJECT_DIR/distilbert_autogrid" "$SERVER:~/$REMOTE_DIR/"
+_sync_tree_incremental() {
+    local src="$1"
+    local dst="$2"
+    if command -v rsync >/dev/null 2>&1; then
+        # 增量同步：只传变化文件；排除实验结果与缓存，避免每次传 246+ 组 CSV。
+        rsync -az \
+            --exclude 'results/' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            "$src/" "$SERVER:~/$REMOTE_DIR/$dst/"
+        return 0
+    fi
+    echo "[upload.sh] 未找到 rsync，回退为逐文件 scp（仍排除 results/）。" >&2
+    while IFS= read -r f; do
+        rel="${f#$src/}"
+        remote_dir="$SERVER:~/$REMOTE_DIR/$dst/$(dirname "$rel")"
+        ssh "$SERVER" "mkdir -p \"$HOME/$REMOTE_DIR/$dst/$(dirname "$rel")\"" >/dev/null 2>&1 || true
+        scp "$f" "$remote_dir/"
+    done < <(find "$src" -type f ! -path "*/results/*" ! -path "*/__pycache__/*" ! -name "*.pyc")
+}
+
+_sync_tree_incremental "$PROJECT_DIR/distilbert" "distilbert"
+_sync_tree_incremental "$PROJECT_DIR/distilbert_autogrid" "distilbert_autogrid"
 
 scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/upload.ps1" \

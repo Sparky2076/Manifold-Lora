@@ -6,8 +6,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| [`distilbert_autogrid/results/summary.csv`](../distilbert_autogrid/results/summary.csv) | 每组一行：`lr, r, alpha, weight_decay, best_val_acc, …`，`metrics_dir` 为仓库内相对路径 |
-| [`docs/distilbert_grid_analysis.md`](distilbert_grid_analysis.md) | **自动分析报告**（均值/分组/Top15；由 `python -m distilbert_autogrid.analyze_results` 生成） |
+| [`summary.csv`](summary.csv) | 每组一行：`lr, r, alpha, weight_decay, best_val_acc, …`，`metrics_dir` 为仓库内相对路径 |
+| [`distilbert_grid_analysis.md`](distilbert_grid_analysis.md) | **自动分析报告**（均值/分组/Top15；由 `python -m distilbert_autogrid.analyze_results` 生成） |
 
 本次快照：**246** 条有效组合（`status=ok`），验证集准确率按 `best_val_acc` 在 `aggregate_results` 中已排序。
 

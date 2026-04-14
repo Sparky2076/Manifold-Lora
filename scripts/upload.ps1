@@ -8,7 +8,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 
 $Remote = "${Server}:~/${RemoteDir}/"
-Write-Host "上传到 $Remote （DistilBERT + distilbert_autogrid + 根模块 + scripts）"
+Write-Host "上传到 $Remote （增量；默认排除 results/）"
 
 scp "$ProjectDir/optimizers.py", `
     "$ProjectDir/lora.py", `
@@ -16,8 +16,26 @@ scp "$ProjectDir/optimizers.py", `
     $Remote
 if (Test-Path "$ProjectDir/requirements.txt") { scp "$ProjectDir/requirements.txt" $Remote }
 
-scp -r "${ProjectDir}/distilbert" "${Server}:~/${RemoteDir}/"
-scp -r "${ProjectDir}/distilbert_autogrid" "${Server}:~/${RemoteDir}/"
+function Sync-TreeIncremental {
+    param(
+        [string]$SourceDir,
+        [string]$RemoteSubDir
+    )
+    $source = (Resolve-Path $SourceDir).Path
+    $items = Get-ChildItem -Path $source -Recurse -File | Where-Object {
+        $_.FullName -notmatch '[\\/](results|__pycache__)([\\/]|$)' -and $_.Extension -ne '.pyc'
+    }
+    foreach ($it in $items) {
+        $rel = $it.FullName.Substring($source.Length).TrimStart('\','/')
+        $relDir = Split-Path -Parent $rel
+        $remoteDirUnix = if ([string]::IsNullOrWhiteSpace($relDir)) { "$RemoteSubDir" } else { "$RemoteSubDir/" + ($relDir -replace '\\','/') }
+        ssh $Server "mkdir -p ~/$RemoteDir/$remoteDirUnix" | Out-Null
+        scp $it.FullName "${Server}:~/${RemoteDir}/${remoteDirUnix}/"
+    }
+}
+
+Sync-TreeIncremental "${ProjectDir}/distilbert" "distilbert"
+Sync-TreeIncremental "${ProjectDir}/distilbert_autogrid" "distilbert_autogrid"
 
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",

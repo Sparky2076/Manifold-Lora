@@ -277,10 +277,20 @@ python -m distilbert_autogrid.fill_missing_runs
 
 会生成：`distilbert_autogrid/results/missing_runs.csv`，按 `config.py` 全网格（375）对照当前 `results/`，输出每条缺失记录的 `reason`（如 `missing_dir`、`missing_test`、`incomplete_test_rows`）。
 
+当前常见状态是已完成约 246 组、缺失约 129 组；可先执行上面的检测命令确认实时缺口数量。
+
 仅提交缺失项（不重交已完成）：
 
 ```bash
 python -m distilbert_autogrid.fill_missing_runs --submit-bsub
+```
+
+如需后台自动补齐（`nohup`）：
+
+```bash
+cd ~/Manifold-Lora
+nohup python -m distilbert_autogrid.fill_missing_runs --submit-bsub > fill_missing.log 2>&1 &
+tail -f fill_missing.log
 ```
 
 - 脚本会按 `test.csv` 行数对照 `EPOCHS` 判定完成度；**已完成的 246 组不会再次提交**。
@@ -306,7 +316,7 @@ python -m distilbert_autogrid.aggregate_results
 python -m distilbert_autogrid.analyze_results
 ```
 
-生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序），并写 **`docs/distilbert_grid_analysis.md`**（分组均值/Top15 等）。仓库中可跟踪 `summary.csv` 与分析文档（见 `results/.gitignore`）；逐组 `train.csv`/`test.csv` 仍默认不入库。快照说明见 [docs/distilbert_grid_snapshot.md](../docs/distilbert_grid_snapshot.md)。
+生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序），并写 **`distilbert_autogrid/results/distilbert_grid_analysis.md`**（分组均值/Top15 等）。仓库中可跟踪 `summary.csv` 与分析文档（见 `results/.gitignore`）；逐组 `train.csv`/`test.csv` 仍默认不入库。快照说明见 [`results/distilbert_grid_snapshot.md`](results/distilbert_grid_snapshot.md)。
 
 ---
 
@@ -329,7 +339,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `distilbert_autogrid/run_grid.py` | 本地顺序跑网格 |
 | `distilbert_autogrid/fill_missing_runs.py` | 对照 375 全网格生成 `missing_runs.csv`，并可仅补交缺失项 |
 | `distilbert_autogrid/aggregate_results.py` | 生成 `summary.csv` |
-| `distilbert_autogrid/analyze_results.py` | 从 `summary.csv` 生成 `docs/distilbert_grid_analysis.md` |
+| `distilbert_autogrid/analyze_results.py` | 从 `summary.csv` 生成 `results/distilbert_grid_analysis.md` |
 | `distilbert/scripts/submit_bsub.sh` | 单次分类 `bsub` |
 | `scripts/upload.sh`、`upload.ps1` | 本机上传到集群（仅 DistilBERT 相关） |
 | `scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀 `distilbert_grid*` 批量 `bkill` |

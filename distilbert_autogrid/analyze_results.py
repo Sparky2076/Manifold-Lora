@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read distilbert_autogrid/results/summary.csv and write docs/distilbert_grid_analysis.md."""
+"""Read distilbert_autogrid/results/summary.csv and write results/distilbert_grid_analysis.md."""
 from __future__ import annotations
 
 import argparse
@@ -41,7 +41,7 @@ def main() -> int:
         "-o",
         "--output",
         type=Path,
-        default=PROJECT_ROOT / "docs" / "distilbert_grid_analysis.md",
+        default=RESULTS_ROOT / "distilbert_grid_analysis.md",
         help="Output Markdown path",
     )
     args = parser.parse_args()
@@ -94,7 +94,7 @@ def main() -> int:
     lines: list[str] = [
         "# DistilBERT LoRA 网格结果分析",
         "",
-        f"由 `python -m distilbert_autogrid.analyze_results` 根据 [`distilbert_autogrid/results/summary.csv`](../distilbert_autogrid/results/summary.csv) 自动生成。",
+        f"由 `python -m distilbert_autogrid.analyze_results` 根据 [`summary.csv`](summary.csv) 自动生成。",
         "",
         f"- **生成时间（UTC）**：{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}Z",
         f"- **有效行数**：{len(ok)}（`status=ok` 且 `best_val_acc` 可解析）",
