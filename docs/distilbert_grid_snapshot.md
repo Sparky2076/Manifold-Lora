@@ -7,6 +7,7 @@
 | 文件 | 说明 |
 |------|------|
 | [`distilbert_autogrid/results/summary.csv`](../distilbert_autogrid/results/summary.csv) | 每组一行：`lr, r, alpha, weight_decay, best_val_acc, …`，`metrics_dir` 为仓库内相对路径 |
+| [`docs/distilbert_grid_analysis.md`](distilbert_grid_analysis.md) | **自动分析报告**（均值/分组/Top15；由 `python -m distilbert_autogrid.analyze_results` 生成） |
 
 本次快照：**246** 条有效组合（`status=ok`），验证集准确率按 `best_val_acc` 在 `aggregate_results` 中已排序。
 
@@ -26,4 +27,4 @@
 python -m distilbert_autogrid.aggregate_results
 ```
 
-再按需提交 `summary.csv` 与本说明（或只更新 CSV）。
+再按需提交 `summary.csv`、运行 `python -m distilbert_autogrid.analyze_results` 更新 [`distilbert_grid_analysis.md`](distilbert_grid_analysis.md)，并提交本说明（或只更新 CSV）。

@@ -271,9 +271,10 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 
 ```bash
 python -m distilbert_autogrid.aggregate_results
+python -m distilbert_autogrid.analyze_results
 ```
 
-生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序）。仓库中可跟踪该汇总文件（见 `results/.gitignore`）；逐组 `train.csv`/`test.csv` 仍默认不入库。结果解读示例见 [docs/distilbert_grid_snapshot.md](../docs/distilbert_grid_snapshot.md)。
+生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序），并写 **`docs/distilbert_grid_analysis.md`**（分组均值/Top15 等）。仓库中可跟踪 `summary.csv` 与分析文档（见 `results/.gitignore`）；逐组 `train.csv`/`test.csv` 仍默认不入库。快照说明见 [docs/distilbert_grid_snapshot.md](../docs/distilbert_grid_snapshot.md)。
 
 ---
 
@@ -295,6 +296,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `distilbert_autogrid/run_grid_bsub.sh` | LSF 全因子网格，每组合一作业 |
 | `distilbert_autogrid/run_grid.py` | 本地顺序跑网格 |
 | `distilbert_autogrid/aggregate_results.py` | 生成 `summary.csv` |
+| `distilbert_autogrid/analyze_results.py` | 从 `summary.csv` 生成 `docs/distilbert_grid_analysis.md` |
 | `distilbert/scripts/submit_bsub.sh` | 单次分类 `bsub` |
 | `scripts/upload.sh`、`upload.ps1` | 本机上传到集群（仅 DistilBERT 相关） |
 | `scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀 `distilbert_grid*` 批量 `bkill` |
