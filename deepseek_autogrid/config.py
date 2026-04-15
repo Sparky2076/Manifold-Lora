@@ -5,10 +5,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_ROOT = PROJECT_ROOT / "deepseek_autogrid" / "results"
 
-LR_LIST = [2e-5, 3e-5, 4e-5]
-R_LIST = [8, 16, 32]
-ALPHA_LIST = [8, 16, 32]
-WEIGHT_DECAY_LIST = [0.0, 0.01]
+# 对数学习率网格（你要求的 2e-3 到 2e-7）
+LR_LIST = [2e-3, 2e-4, 2e-5, 2e-6, 2e-7]
+# r / alpha 各加两档，覆盖更大容量区间
+R_LIST = [8, 16, 32, 64, 128]
+ALPHA_LIST = [8, 16, 32, 64, 128]
+# 增加更强正则档位
+WEIGHT_DECAY_LIST = [0.0, 0.01, 0.1]
 
 ADAM_BETA1_FIXED = 0.9
 ADAM_BETA2_FIXED = 0.999

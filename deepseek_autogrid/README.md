@@ -1,11 +1,11 @@
-﻿# DeepSeek 全因子网格（LoRA / mLoRA）
+# DeepSeek 全因子网格（LoRA / mLoRA）
 
 当前网格默认配置：
 
 - 数据：`alpaca_train_1k`
 - 验证比例：`SFT_VAL_RATIO=0.2`
 - 步数：`MAX_STEPS=1500`，`EVAL_EVERY=100`
-- 参数网格：`lr(3) × r(3) × alpha(3) × wd(2) = 54` 组
+- 参数网格：`lr(5) × r(5) × alpha(5) × wd(3) = 375` 组（每种 LoRA 类型）
 
 ## 服务器提交（默认 nohup）
 
