@@ -40,6 +40,8 @@ Sync-TreeIncremental "${ProjectDir}/distilbert_autogrid" "distilbert_autogrid"
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",
     "$ProjectDir/scripts/upload.ps1",
+    "$ProjectDir/scripts/pull_results.sh",
+    "$ProjectDir/scripts/pull_results.ps1",
     "$ProjectDir/scripts/commit_and_push.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_force.sh",

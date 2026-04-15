@@ -45,6 +45,8 @@ _sync_tree_incremental "$PROJECT_DIR/distilbert_autogrid" "distilbert_autogrid"
 
 scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/upload.ps1" \
+    "$PROJECT_DIR/scripts/pull_results.sh" \
+    "$PROJECT_DIR/scripts/pull_results.ps1" \
     "$PROJECT_DIR/scripts/commit_and_push.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid_force.sh" \
