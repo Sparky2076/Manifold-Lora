@@ -307,6 +307,8 @@ python -m distilbert_autogrid.analyze_results
 
 `summary.csv` 会自动包含旧结果 + 新补齐结果（按 `metrics_dir` 扫描聚合）。
 
+> 现在 `aggregate_results` / `analyze_results` 默认会在 **`ok < 375`** 时报错退出，防止你误生成“未跑满”的最终汇总；若仅做阶段性检查，显式加 `--allow-incomplete`。
+
 ---
 
 ## 汇总
@@ -317,6 +319,13 @@ python -m distilbert_autogrid.analyze_results
 ```
 
 生成 `distilbert_autogrid/results/summary.csv`（按 `best_val_acc` 降序），并写 **`distilbert_autogrid/results/distilbert_grid_analysis.md`**（分组均值/Top15 等）。仓库中可跟踪 `summary.csv` 与分析文档（见 `results/.gitignore`）；逐组 `train.csv`/`test.csv` 仍默认不入库。快照说明见 [`results/distilbert_grid_snapshot.md`](results/distilbert_grid_snapshot.md)。
+
+若仅需查看中间结果（尚未跑满 375）：
+
+```bash
+python -m distilbert_autogrid.aggregate_results --allow-incomplete
+python -m distilbert_autogrid.analyze_results --allow-incomplete
+```
 
 ---
 

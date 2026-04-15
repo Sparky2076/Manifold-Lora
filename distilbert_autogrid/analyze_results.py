@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from distilbert_autogrid.config import PROJECT_ROOT, RESULTS_ROOT
+from distilbert_autogrid.config import RESULTS_ROOT, grid_size
 
 
 def _f(x: str) -> float | None:
@@ -44,10 +44,23 @@ def main() -> int:
         default=RESULTS_ROOT / "distilbert_grid_analysis.md",
         help="Output Markdown path",
     )
+    parser.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="Allow generating analysis even when summary does not cover full grid",
+    )
     args = parser.parse_args()
 
     summary_path = args.summary.resolve()
     rows = load_rows(summary_path)
+    expected = grid_size()
+    ok_total = sum(1 for r in rows if r.get("status") == "ok")
+    if not args.allow_incomplete and ok_total < expected:
+        raise SystemExit(
+            f"Incomplete grid: ok rows {ok_total} < expected {expected}. "
+            "Finish missing runs first, or pass --allow-incomplete."
+        )
+
     ok = []
     for r in rows:
         if r.get("status") != "ok":

@@ -7,7 +7,7 @@ import csv
 import json
 from pathlib import Path
 
-from distilbert_autogrid.config import PROJECT_ROOT, RESULTS_ROOT
+from distilbert_autogrid.config import EPOCHS_DEFAULT, PROJECT_ROOT, RESULTS_ROOT, grid_size
 
 
 def read_run_meta(run_dir: Path) -> dict | None:
@@ -43,6 +43,17 @@ def best_from_test_csv(test_csv: Path) -> tuple[float | None, float | None, int 
     return acc, loss, it
 
 
+def test_rows_count(test_csv: Path) -> int:
+    """Count data rows in test.csv as (total lines - header), same rule as run_grid_bsub.sh."""
+    if not test_csv.is_file():
+        return 0
+    try:
+        lines = test_csv.read_text(encoding="utf-8", errors="ignore").splitlines()
+        return max(0, len(lines) - 1)
+    except OSError:
+        return 0
+
+
 def aggregate() -> int:
     parser = argparse.ArgumentParser(description="Build summary.csv from distilbert_autogrid results")
     parser.add_argument(
@@ -57,6 +68,17 @@ def aggregate() -> int:
         type=Path,
         default=None,
         help="Output CSV path (default: <results-root>/summary.csv)",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=EPOCHS_DEFAULT,
+        help="Fallback epochs when run_meta.json lacks epochs (default: config EPOCHS_DEFAULT)",
+    )
+    parser.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="Do not fail when ok rows are fewer than full grid size",
     )
     args = parser.parse_args()
 
@@ -116,8 +138,18 @@ def aggregate() -> int:
         else:
             lr = r_ = alpha = ep = wd = b1 = b2 = ""
 
-        if test_csv.is_file() and best_acc is not None:
+        required_epochs = args.epochs
+        if meta and meta.get("epochs") not in ("", None):
+            try:
+                required_epochs = int(meta.get("epochs"))
+            except (TypeError, ValueError):
+                required_epochs = args.epochs
+        rows_n = test_rows_count(test_csv)
+
+        if test_csv.is_file() and best_acc is not None and rows_n >= required_epochs:
             status = "ok"
+        elif test_csv.is_file() and rows_n < required_epochs:
+            status = "incomplete_test_rows"
         elif meta and not test_csv.is_file():
             status = "incomplete"
         elif not meta and not test_csv.is_file():
@@ -160,7 +192,15 @@ def aggregate() -> int:
         for row in rows_out:
             w.writerow({k: row.get(k, "") for k in fieldnames})
 
-    print(f"Wrote {len(rows_out)} rows to {out_path}")
+    expected = grid_size()
+    ok_rows = sum(1 for r in rows_out if r.get("status") == "ok")
+    print(f"Wrote {len(rows_out)} rows to {out_path} (ok={ok_rows}, expected={expected})")
+    if not args.allow_incomplete and ok_rows < expected:
+        print(
+            f"[aggregate_results] ERROR: grid incomplete (ok={ok_rows} < expected={expected}). "
+            f"Finish missing runs first or pass --allow-incomplete.",
+        )
+        return 2
     return 0
 
 
