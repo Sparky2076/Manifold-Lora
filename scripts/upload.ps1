@@ -47,6 +47,7 @@ $uploadOnly = @(
     "$ProjectDir/scripts/commit_and_push.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_force.sh",
+    "$ProjectDir/scripts/server_submit_distilbert_grid_mlora.sh",
     "$ProjectDir/scripts/kill_distilbert_grid_bjobs.sh"
 )
 foreach ($f in $uploadOnly) {

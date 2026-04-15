@@ -21,13 +21,20 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
-RESULTS_ROOT="${RESULTS_ROOT:-$PROJECT_DIR/distilbert_autogrid/results}"
 GRID_RESUME="${GRID_RESUME:-1}"
 GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
 GRID_MAX_PEND="${GRID_MAX_PEND:-0}"
 GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
 SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-180}"
 GRID_MAX_PASSES="${GRID_MAX_PASSES:-0}"
+LORA_TYPE="${LORA_TYPE:-default}"
+if [[ -z "${RESULTS_ROOT:-}" ]]; then
+  if [[ "${LORA_TYPE}" == "mlora" ]]; then
+    RESULTS_ROOT="$PROJECT_DIR/distilbert_autogrid/results_mlora"
+  else
+    RESULTS_ROOT="$PROJECT_DIR/distilbert_autogrid/results"
+  fi
+fi
 
 # Wait until bjobs counts allow another submission (LSF: STAT column RUN / PEND).
 _grid_wait_slot() {
@@ -104,7 +111,7 @@ while true; do
     export LR="$LR" LORA_R="$R" LORA_ALPHA="$A" EPOCHS="$EPOCHS"
     export WEIGHT_DECAY="$WD"
     export METRICS_DIR
-    export LORA_TYPE="${LORA_TYPE:-default}"
+    export LORA_TYPE
     export LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
     export BATCH_SIZE="${BATCH_SIZE:-4}"
     export GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-8}"

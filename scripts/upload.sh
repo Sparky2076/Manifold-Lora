@@ -9,15 +9,30 @@ SERVER="${SERVER:-wangxiao@202.121.138.196}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SSH_CONTROL_PATH="${SSH_CONTROL_PATH:-/tmp/manifold-lora-upload-%r@%h:%p}"
+SSH_OPTS=(-o ControlMaster=auto -o ControlPersist=10m -o "ControlPath=${SSH_CONTROL_PATH}")
+
+_ssh() {
+    ssh "${SSH_OPTS[@]}" "$@"
+}
+
+_scp() {
+    scp "${SSH_OPTS[@]}" "$@"
+}
+
+_close_master() {
+    _ssh -O exit "$SERVER" >/dev/null 2>&1 || true
+}
+trap _close_master EXIT
 
 echo "上传到 $SERVER:~/$REMOTE_DIR/ （增量；默认排除 results/）"
 
-scp "$PROJECT_DIR/optimizers.py" \
+_scp "$PROJECT_DIR/optimizers.py" \
     "$PROJECT_DIR/lora.py" \
     "$PROJECT_DIR/mlora.py" \
     "$SERVER:~/$REMOTE_DIR/"
 
-[ -f "$PROJECT_DIR/requirements.txt" ] && scp "$PROJECT_DIR/requirements.txt" "$SERVER:~/$REMOTE_DIR/"
+[ -f "$PROJECT_DIR/requirements.txt" ] && _scp "$PROJECT_DIR/requirements.txt" "$SERVER:~/$REMOTE_DIR/"
 
 _sync_tree_incremental() {
     local src="$1"
@@ -31,19 +46,18 @@ _sync_tree_incremental() {
             "$src/" "$SERVER:~/$REMOTE_DIR/$dst/"
         return 0
     fi
-    echo "[upload.sh] 未找到 rsync，回退为逐文件 scp（仍排除 results/）。" >&2
-    while IFS= read -r f; do
-        rel="${f#$src/}"
-        remote_dir="$SERVER:~/$REMOTE_DIR/$dst/$(dirname "$rel")"
-        ssh "$SERVER" "mkdir -p \"$HOME/$REMOTE_DIR/$dst/$(dirname "$rel")\"" >/dev/null 2>&1 || true
-        scp "$f" "$remote_dir/"
-    done < <(find "$src" -type f ! -path "*/results/*" ! -path "*/__pycache__/*" ! -name "*.pyc")
+    echo "[upload.sh] 未找到 rsync，回退为单次 tar+ssh 传输（仍排除 results/）。" >&2
+    (cd "$src" && tar -cf - \
+        --exclude='results' \
+        --exclude='__pycache__' \
+        --exclude='*.pyc' \
+        .) | _ssh "$SERVER" "mkdir -p ~/$REMOTE_DIR/$dst && tar -xf - -C ~/$REMOTE_DIR/$dst"
 }
 
 _sync_tree_incremental "$PROJECT_DIR/distilbert" "distilbert"
 _sync_tree_incremental "$PROJECT_DIR/distilbert_autogrid" "distilbert_autogrid"
 
-scp "$PROJECT_DIR/scripts/upload.sh" \
+_scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/upload.ps1" \
     "$PROJECT_DIR/scripts/pull_results.sh" \
     "$PROJECT_DIR/scripts/pull_results.ps1" \
@@ -52,6 +66,7 @@ scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/commit_and_push.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid_force.sh" \
+    "$PROJECT_DIR/scripts/server_submit_distilbert_grid_mlora.sh" \
     "$PROJECT_DIR/scripts/kill_distilbert_grid_bjobs.sh" \
     "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 

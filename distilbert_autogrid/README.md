@@ -97,6 +97,23 @@ bash scripts/server_submit_distilbert_grid.sh
 
 脚本头部说明：[`scripts/server_submit_distilbert_grid.sh`](../scripts/server_submit_distilbert_grid.sh)。
 
+### mLoRA 全同网格（与 LoRA 同参数空间）
+
+直接用包装脚本（默认写入 `distilbert_autogrid/results_mlora/`，避免覆盖 LoRA 结果）：
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+bash scripts/server_submit_distilbert_grid_mlora.sh
+```
+
+等价于手动设置：
+
+```bash
+LORA_TYPE=mlora RESULTS_ROOT=distilbert_autogrid/results_mlora \
+  bash scripts/server_submit_distilbert_grid.sh
+```
+
 ### 手动分步
 
 ```bash
@@ -389,6 +406,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀 `distilbert_grid*` 批量 `bkill` |
 | `scripts/server_submit_distilbert_grid.sh` | 服务器：`sed` + `CONDA_ROOT` + `run_grid_bsub.sh` |
 | `scripts/server_submit_distilbert_grid_force.sh` | 同上，`GRID_RESUME=0` |
+| `scripts/server_submit_distilbert_grid_mlora.sh` | 服务器 mLoRA 网格（默认 `LORA_TYPE=mlora`，`RESULTS_ROOT=results_mlora`） |
 | `scripts/commit_and_push.sh` | 交互式推 GitHub |
 
 查看任务：`bjobs`；日志：`JOBID.out`、`JOBID.err`。
