@@ -1,4 +1,4 @@
-# 仅上传 DistilBERT + distilbert_autogrid + 根模块 + scripts（与 upload.sh 一致）
+# 仅上传 DistilBERT / DeepSeek 网格相关文件（与 upload.sh 一致）
 # 用法: .\scripts\upload.ps1  或  pwsh -File scripts/upload.ps1
 
 $ErrorActionPreference = "Stop"
@@ -36,18 +36,26 @@ function Sync-TreeIncremental {
 
 Sync-TreeIncremental "${ProjectDir}/distilbert" "distilbert"
 Sync-TreeIncremental "${ProjectDir}/distilbert_autogrid" "distilbert_autogrid"
+Sync-TreeIncremental "${ProjectDir}/deepseek" "deepseek"
+Sync-TreeIncremental "${ProjectDir}/deepseek_autogrid" "deepseek_autogrid"
 
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",
     "$ProjectDir/scripts/upload.ps1",
     "$ProjectDir/scripts/pull_results.sh",
     "$ProjectDir/scripts/pull_results.ps1",
+    "$ProjectDir/scripts/pull_deepseek_results.sh",
+    "$ProjectDir/scripts/pull_deepseek_results.ps1",
     "$ProjectDir/scripts/refresh_results_and_publish.sh",
     "$ProjectDir/scripts/refresh_results_and_publish.ps1",
+    "$ProjectDir/scripts/refresh_deepseek_results_and_publish.sh",
+    "$ProjectDir/scripts/refresh_deepseek_results_and_publish.ps1",
     "$ProjectDir/scripts/commit_and_push.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_force.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_mlora.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_grid.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_grid_mlora.sh",
     "$ProjectDir/scripts/kill_distilbert_grid_bjobs.sh"
 )
 foreach ($f in $uploadOnly) {

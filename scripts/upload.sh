@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 仅上传 DistilBERT 分类 + 全因子网格所需文件（体积小、速度快）
-# 含：根目录共享模块、distilbert/、distilbert_autogrid/、scripts/
+# 仅上传 DistilBERT / DeepSeek 网格所需文件（体积小、速度快）
+# 含：根目录共享模块、distilbert/、distilbert_autogrid/、deepseek/、deepseek_autogrid/、scripts/
 # 用法: bash scripts/upload.sh
 
 set -euo pipefail
@@ -56,17 +56,25 @@ _sync_tree_incremental() {
 
 _sync_tree_incremental "$PROJECT_DIR/distilbert" "distilbert"
 _sync_tree_incremental "$PROJECT_DIR/distilbert_autogrid" "distilbert_autogrid"
+_sync_tree_incremental "$PROJECT_DIR/deepseek" "deepseek"
+_sync_tree_incremental "$PROJECT_DIR/deepseek_autogrid" "deepseek_autogrid"
 
 _scp "$PROJECT_DIR/scripts/upload.sh" \
     "$PROJECT_DIR/scripts/upload.ps1" \
     "$PROJECT_DIR/scripts/pull_results.sh" \
     "$PROJECT_DIR/scripts/pull_results.ps1" \
+    "$PROJECT_DIR/scripts/pull_deepseek_results.sh" \
+    "$PROJECT_DIR/scripts/pull_deepseek_results.ps1" \
     "$PROJECT_DIR/scripts/refresh_results_and_publish.sh" \
     "$PROJECT_DIR/scripts/refresh_results_and_publish.ps1" \
+    "$PROJECT_DIR/scripts/refresh_deepseek_results_and_publish.sh" \
+    "$PROJECT_DIR/scripts/refresh_deepseek_results_and_publish.ps1" \
     "$PROJECT_DIR/scripts/commit_and_push.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid_force.sh" \
     "$PROJECT_DIR/scripts/server_submit_distilbert_grid_mlora.sh" \
+    "$PROJECT_DIR/scripts/server_submit_deepseek_grid.sh" \
+    "$PROJECT_DIR/scripts/server_submit_deepseek_grid_mlora.sh" \
     "$PROJECT_DIR/scripts/kill_distilbert_grid_bjobs.sh" \
     "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 

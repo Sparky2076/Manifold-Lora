@@ -16,6 +16,7 @@
 |------|------|
 | **上传服务器、`bsub`、tmux（含 `tmux attach -t grid`）、`CONDA_ROOT` + `GRID_MAX_RUN` / `GRID_MAX_PEND`、续跑/强交、`Ctrl+C` / `bkill`** | **[distilbert_autogrid/README.md](distilbert_autogrid/README.md)**（集群操作以该文档为准） |
 | DistilBERT 目录与单次训练 | [distilbert/README.md](distilbert/README.md) |
+| DeepSeek SFT 与全因子网格（LoRA/mLoRA） | [deepseek_autogrid/README.md](deepseek_autogrid/README.md) |
 | Git 提交/推送辅助 | [scripts/commit_and_push.sh](scripts/commit_and_push.sh) |
 | DeepSeek 规划（实现待补） | [docs/DEEPSEEK_FINETUNE_PLAN.md](docs/DEEPSEEK_FINETUNE_PLAN.md) |
 
