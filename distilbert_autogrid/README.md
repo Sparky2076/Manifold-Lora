@@ -277,6 +277,8 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 
 `run_grid_bsub.sh` 默认 **`GRID_RESUME=1`**：已有完整 `test.csv` 的组合不再 `bsub`。中断后重新执行同一命令即可从缺口继续。
 
+脚本还会在每轮提交后等待当前 `distilbert_grid_*` 作业跑完，并再次扫描未完成组合；若有失败/缺失会继续补交，直到全部完成（或达到 `GRID_MAX_PASSES`）。
+
 可选环境变量：
 
 | 变量 | 含义 |
@@ -296,6 +298,7 @@ bash scripts/kill_distilbert_grid_bjobs.sh
 | `GRID_MAX_PEND` | 见上文；`0` 关闭 |
 | `GRID_POLL_SEC` | 自节流轮询间隔，默认 `30` |
 | `SUBMIT_SLEEP_SEC` | 两次 `bsub` 之间的间隔秒数，默认 **`180`（3 分钟）**，减轻同节点 GPU 扎堆；临时加快可设 `SUBMIT_SLEEP_SEC=30` |
+| `GRID_MAX_PASSES` | 自动补交循环最大轮数，默认 `0`（直到全部完成才结束） |
 
 ---
 
