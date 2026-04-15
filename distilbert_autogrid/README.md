@@ -40,6 +40,31 @@ bash scripts/pull_results.sh
 # 或 PowerShell: .\scripts\pull_results.ps1
 ```
 
+## 本地一键“拉取→汇总→分析→上传 GitHub”
+
+推荐固定用以下脚本，避免漏步骤：
+
+```bash
+bash scripts/refresh_results_and_publish.sh
+# 或 PowerShell: .\scripts\refresh_results_and_publish.ps1
+```
+
+脚本顺序：
+
+1. 调用 `pull_results` 拉回 `summary.csv` / `missing_runs.csv` / `distilbert_grid_analysis.md`
+2. 运行 `aggregate_results`（默认严格：`ok` 必须达到 375）
+3. 运行 `analyze_results`（默认严格：`ok` 必须达到 375）
+4. 仅 `git add` 结果汇总文件（不包含大规模逐 run CSV）
+5. 自动 `git commit` + `git push`
+
+可选环境变量：
+
+| 变量 | 含义 |
+|------|------|
+| `SERVER` / `REMOTE_DIR` | 远程服务器与目录（传给 `pull_results`） |
+| `COMMIT_MSG` | 提交说明（默认 `Update distilbert grid results (summary/missing/analysis)`） |
+| `ALLOW_INCOMPLETE=1` | 允许未满 375 时继续（默认不建议） |
+
 ---
 
 ## 本地顺序跑满网格（不占 LSF）

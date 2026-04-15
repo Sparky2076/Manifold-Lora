@@ -42,6 +42,8 @@ $uploadOnly = @(
     "$ProjectDir/scripts/upload.ps1",
     "$ProjectDir/scripts/pull_results.sh",
     "$ProjectDir/scripts/pull_results.ps1",
+    "$ProjectDir/scripts/refresh_results_and_publish.sh",
+    "$ProjectDir/scripts/refresh_results_and_publish.ps1",
     "$ProjectDir/scripts/commit_and_push.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_force.sh",
