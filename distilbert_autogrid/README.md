@@ -99,19 +99,30 @@ bash scripts/server_submit_distilbert_grid.sh
 
 ### mLoRA 全同网格（与 LoRA 同参数空间）
 
-直接用包装脚本（默认写入 `distilbert_autogrid/results_mlora/`，避免覆盖 LoRA 结果）：
+直接用包装脚本（默认写入 `distilbert_autogrid/results_mlora/`，避免覆盖 LoRA 结果）。与下文「默认后台方式：nohup（推荐）」一节一致，建议 **`nohup`** 后台提交（日志文件名与 LoRA 的 `grid_submit.log` 区分）：
 
 ```bash
 cd ~/Manifold-Lora
 export CONDA_ROOT="$HOME/miniconda3"
-bash scripts/server_submit_distilbert_grid_mlora.sh
+export GRID_MAX_RUN=5
+export GRID_MAX_PEND=1
+export GRID_POLL_SEC=30
+nohup bash scripts/server_submit_distilbert_grid_mlora.sh > grid_mlora_submit.log 2>&1 &
+tail -f grid_mlora_submit.log
 ```
 
-等价于手动设置：
+等价于手动设置（同样建议 `nohup`）：
 
 ```bash
-LORA_TYPE=mlora RESULTS_ROOT=distilbert_autogrid/results_mlora \
-  bash scripts/server_submit_distilbert_grid.sh
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+export LORA_TYPE=mlora
+export RESULTS_ROOT=distilbert_autogrid/results_mlora
+export GRID_MAX_RUN=5
+export GRID_MAX_PEND=1
+export GRID_POLL_SEC=30
+nohup bash scripts/server_submit_distilbert_grid.sh > grid_mlora_submit.log 2>&1 &
+tail -f grid_mlora_submit.log
 ```
 
 ### 手动分步
@@ -375,7 +386,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `scripts/kill_distilbert_grid_bjobs.sh` | 按作业名前缀 `distilbert_grid*` 批量 `bkill` |
 | `scripts/server_submit_distilbert_grid.sh` | 服务器：`sed` + `CONDA_ROOT` + `run_grid_bsub.sh` |
 | `scripts/server_submit_distilbert_grid_force.sh` | 同上，`GRID_RESUME=0` |
-| `scripts/server_submit_distilbert_grid_mlora.sh` | 服务器 mLoRA 网格（默认 `LORA_TYPE=mlora`，`RESULTS_ROOT=results_mlora`） |
+| `scripts/server_submit_distilbert_grid_mlora.sh` | 服务器 mLoRA 网格（默认 `LORA_TYPE=mlora`，`RESULTS_ROOT=results_mlora`）；**推荐** `nohup … > grid_mlora_submit.log 2>&1 &`（见「mLoRA 全同网格」） |
 | `scripts/commit_and_push.sh` | 交互式推 GitHub |
 
 查看任务：`bjobs`；日志：`JOBID.out`、`JOBID.err`。
