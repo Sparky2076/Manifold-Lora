@@ -1,6 +1,6 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
-SERVER="${SERVER:-wangxiao@202.121.138.196}"
+SERVER="${SERVER:-wangxiao@202.121.138.221}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

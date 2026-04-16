@@ -2,7 +2,7 @@
 # 用法: .\scripts\upload.ps1  或  pwsh -File scripts/upload.ps1
 
 $ErrorActionPreference = "Stop"
-$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.196" }
+$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.221" }
 $RemoteDir = if ($env:REMOTE_DIR) { $env:REMOTE_DIR } else { "Manifold-Lora" }
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir

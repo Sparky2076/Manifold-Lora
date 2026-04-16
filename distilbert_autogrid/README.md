@@ -29,8 +29,8 @@ PowerShell：`.\scripts\upload.ps1`。
 
 ```powershell
 cd D:\GitHub_Code\Manifold-Lora
-scp wangxiao@202.121.138.196:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
-scp -r "wangxiao@202.121.138.196:~/Manifold-Lora/distilbert_autogrid/results/<run_name>" distilbert_autogrid/results/
+scp wangxiao@202.121.138.221:~/Manifold-Lora/distilbert/results/train.csv distilbert/results/
+scp -r "wangxiao@202.121.138.221:~/Manifold-Lora/distilbert_autogrid/results/<run_name>" distilbert_autogrid/results/
 ```
 
 一键拉回汇总文件（`summary.csv` / `missing_runs.csv` / `distilbert_grid_analysis.md`）：

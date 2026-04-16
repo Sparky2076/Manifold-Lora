@@ -2,11 +2,11 @@
 # 从服务器拉回 DistilBERT 网格汇总结果到本地（bash）
 # 用法:
 #   bash scripts/pull_results.sh
-#   SERVER=wangxiao@202.121.138.196 REMOTE_DIR=Manifold-Lora bash scripts/pull_results.sh
+#   SERVER=wangxiao@202.121.138.221 REMOTE_DIR=Manifold-Lora bash scripts/pull_results.sh
 
 set -euo pipefail
 
-SERVER="${SERVER:-wangxiao@202.121.138.196}"
+SERVER="${SERVER:-wangxiao@202.121.138.221}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
