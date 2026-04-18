@@ -125,6 +125,20 @@ nohup bash scripts/server_submit_distilbert_grid.sh > grid_mlora_submit.log 2>&1
 tail -f grid_mlora_submit.log
 ```
 
+### 网格筛完后：最优超参 20 epoch（终局复现）
+
+`aggregate_results` 写出的 `summary.csv` 已按 **`best_val_acc` 降序** 排序，**第一行数据**即当前最优组合。下面脚本从对应 `summary.csv` 读首行超参，各提交 **一个** `bsub`，**`EPOCHS=20`**：
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+
+bash scripts/server_submit_distilbert_best_lora_20ep.sh    # LoRA → distilbert/results_final_best_lora_20ep/
+bash scripts/server_submit_distilbert_best_mlora_20ep.sh    # mLoRA → distilbert/results_final_best_mlora_20ep/
+```
+
+等价：`bash scripts/server_submit_distilbert_best_20ep.sh lora` / `... mlora`。跑完后用 `bjobs`、`JOBID.out` / `.err` 查看；指标在各自 `METRICS_DIR` 下的 `train.csv` / `test.csv`。若要把终局目录拉回本机，可 `scp -r` 上述目录（体积大时勿整库 `git add`）。
+
 ### 手动分步
 
 ```bash
@@ -387,6 +401,9 @@ bash distilbert/scripts/watch_metrics.sh
 | `scripts/server_submit_distilbert_grid.sh` | 服务器：`sed` + `CONDA_ROOT` + `run_grid_bsub.sh` |
 | `scripts/server_submit_distilbert_grid_force.sh` | 同上，`GRID_RESUME=0` |
 | `scripts/server_submit_distilbert_grid_mlora.sh` | 服务器 mLoRA 网格（默认 `LORA_TYPE=mlora`，`RESULTS_ROOT=results_mlora`）；**推荐** `nohup … > grid_mlora_submit.log 2>&1 &`（见「mLoRA 全同网格」） |
+| `scripts/server_submit_distilbert_best_20ep.sh` | 从 `summary.csv` 首行读最优超参，单作业 **20 epoch**（参数：`lora` / `mlora`） |
+| `scripts/server_submit_distilbert_best_lora_20ep.sh` | 同上，LoRA 便捷封装 |
+| `scripts/server_submit_distilbert_best_mlora_20ep.sh` | 同上，mLoRA 便捷封装 |
 | `scripts/commit_and_push.sh` | 交互式推 GitHub |
 
 查看任务：`bjobs`；日志：`JOBID.out`、`JOBID.err`。
