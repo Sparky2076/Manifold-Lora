@@ -27,6 +27,10 @@ nohup bash scripts/server_submit_deepseek_grid_mlora.sh > deepseek_grid_mlora_su
 tail -f deepseek_grid_mlora_submit.log
 ```
 
+## 队列节流（默认）
+
+`run_grid_bsub.sh` 默认 **`GRID_MAX_PEND=1`**：仅当本账号 **`PEND=0`** 时才再 `bsub` 下一单，减轻站点「Pending 上限 / User permission denied」。若仍偶发拒绝，脚本会**等待后重试**，不会整段退出。可调：`GRID_MAX_RUN`、`GRID_MAX_PEND`、`GRID_POLL_SEC`、`SUBMIT_SLEEP_SEC`（关闭 PEND 限制：`GRID_MAX_PEND=0`，不推荐）。
+
 ## 自动补齐缺失
 
 检测：

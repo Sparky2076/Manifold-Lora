@@ -16,8 +16,10 @@ if [[ -z "${RESULTS_ROOT:-}" ]]; then
 fi
 
 GRID_RESUME="${GRID_RESUME:-1}"
+# 与 DistilBERT 网格一致：默认限制 PEND，避免连点 bsub 触发站点「Pending 上限 / User permission denied」后整脚本退出。
+# GRID_MAX_PEND=1 → 仅当 PEND=0 时才再交下一单；GRID_MAX_RUN=0 表示不限制 RUN（可自行设 5 等）。
 GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
-GRID_MAX_PEND="${GRID_MAX_PEND:-0}"
+GRID_MAX_PEND="${GRID_MAX_PEND:-1}"
 GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
 SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-180}"
 GRID_MAX_PASSES="${GRID_MAX_PASSES:-0}"
@@ -41,7 +43,7 @@ _grid_wait_slot() {
     [[ "$GRID_MAX_RUN" =~ ^[0-9]+$ && "$GRID_MAX_RUN" -gt 0 && "$run_n" -gt "$GRID_MAX_RUN" ]] && need_wait=1
     [[ "$GRID_MAX_PEND" =~ ^[0-9]+$ && "$GRID_MAX_PEND" -gt 0 && "$pend_n" -ge "$GRID_MAX_PEND" ]] && need_wait=1
     [[ "$need_wait" -eq 0 ]] && return 0
-    echo "[deepseek-grid] throttle RUN=$run_n PEND=$pend_n, sleep ${GRID_POLL_SEC}s ..." >&2
+    echo "[deepseek-grid] throttle RUN=${run_n} PEND=${pend_n}, sleep ${GRID_POLL_SEC}s ..." >&2
     sleep "$GRID_POLL_SEC"
   done
 }
@@ -97,8 +99,15 @@ while true; do
     export MAX_LENGTH="${MAX_LENGTH:-512}"
     export TORCH_DTYPE="${TORCH_DTYPE:-float32}"
 
-    _grid_wait_slot
-    bash deepseek/scripts/submit_bsub_sft.sh
+    # bsub 失败（如 User permission denied）时只等待重试，不退出整个网格循环
+    while true; do
+      _grid_wait_slot
+      if bash deepseek/scripts/submit_bsub_sft.sh; then
+        break
+      fi
+      echo "[deepseek-grid] bsub failed; sleep ${GRID_POLL_SEC}s then re-check slot and retry ..." >&2
+      sleep "$GRID_POLL_SEC"
+    done
     submit_n=$((submit_n + 1))
     sleep "$SUBMIT_SLEEP_SEC"
   done < <(python -c "
