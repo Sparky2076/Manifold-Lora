@@ -5,8 +5,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_ROOT = PROJECT_ROOT / "deepseek_autogrid" / "results"
 
-# 粗略对数学习率（3 档，缩短总 job 数；需要更细再改回 5 档）
-LR_LIST = [2e-4, 2e-5, 2e-6]
+# 对数学习率（2e-3 … 2e-7）；r/alpha/wd 与步数仍用当前「粗略」设定
+LR_LIST = [2e-3, 2e-4, 2e-5, 2e-6, 2e-7]
 # r / alpha：各 3 档，覆盖中小容量
 R_LIST = [16, 32, 64]
 ALPHA_LIST = [16, 32, 64]
