@@ -5,18 +5,19 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_ROOT = PROJECT_ROOT / "deepseek_autogrid" / "results"
 
-# 对数学习率网格（你要求的 2e-3 到 2e-7）
-LR_LIST = [2e-3, 2e-4, 2e-5, 2e-6, 2e-7]
-# r / alpha 各加两档，覆盖更大容量区间
-R_LIST = [8, 16, 32, 64, 128]
-ALPHA_LIST = [8, 16, 32, 64, 128]
-# 增加更强正则档位
-WEIGHT_DECAY_LIST = [0.0, 0.01, 0.1]
+# 粗略对数学习率（3 档，缩短总 job 数；需要更细再改回 5 档）
+LR_LIST = [2e-4, 2e-5, 2e-6]
+# r / alpha：各 3 档，覆盖中小容量
+R_LIST = [16, 32, 64]
+ALPHA_LIST = [16, 32, 64]
+# 正则：2 档（去掉 0.1 以减组合数；需要再加回）
+WEIGHT_DECAY_LIST = [0.0, 0.01]
 
 ADAM_BETA1_FIXED = 0.9
 ADAM_BETA2_FIXED = 0.999
 
-MAX_STEPS_DEFAULT = 1500
+# 单 job 时长：步数下调（约原 1500 的 1/3）；可用环境变量 MAX_STEPS 覆盖
+MAX_STEPS_DEFAULT = 500
 EVAL_EVERY_DEFAULT = 100
 SFT_PRESET_DEFAULT = "alpaca_train_1k"
 SFT_VAL_RATIO_DEFAULT = 0.2

@@ -8,7 +8,7 @@
 python -m deepseek.main_sft \
   --model_name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
   --sft_preset alpaca_train_1k --sft_val_ratio 0.2 \
-  --max_steps 300 --eval_every 100 \
+  --max_steps 500 --eval_every 100 \
   --lora_type default --metrics_dir deepseek/results/smoke
 ```
 
