@@ -137,7 +137,16 @@ bash scripts/server_submit_distilbert_best_lora_20ep.sh    # LoRA → distilbert
 bash scripts/server_submit_distilbert_best_mlora_20ep.sh    # mLoRA → distilbert/results_final_best_mlora_20ep/
 ```
 
-等价：`bash scripts/server_submit_distilbert_best_20ep.sh lora` / `... mlora`。跑完后用 `bjobs`、`JOBID.out` / `.err` 查看；指标在各自 `METRICS_DIR` 下的 `train.csv` / `test.csv`。若要把终局目录拉回本机，可 `scp -r` 上述目录（体积大时勿整库 `git add`）。
+等价：`bash scripts/server_submit_distilbert_best_20ep.sh lora` / `... mlora`。跑完后用 `bjobs`、`JOBID.out` / `.err` 查看；指标在各自 `METRICS_DIR` 下的 `train.csv` / `test.csv`。
+
+**本机拉回终局目录**（默认两个都拉；只拉其一：`PULL_WHICH=lora` 或 `mlora`）：
+
+```bash
+bash scripts/pull_distilbert_best_20ep.sh
+# PowerShell: .\scripts\pull_distilbert_best_20ep.ps1
+```
+
+体积大时勿整目录 `git add`，按需只提交摘要或图表。
 
 ### 手动分步
 
@@ -404,6 +413,7 @@ bash distilbert/scripts/watch_metrics.sh
 | `scripts/server_submit_distilbert_best_20ep.sh` | 从 `summary.csv` 首行读最优超参，单作业 **20 epoch**（参数：`lora` / `mlora`） |
 | `scripts/server_submit_distilbert_best_lora_20ep.sh` | 同上，LoRA 便捷封装 |
 | `scripts/server_submit_distilbert_best_mlora_20ep.sh` | 同上，mLoRA 便捷封装 |
+| `scripts/pull_distilbert_best_20ep.sh`、`.ps1` | 本机拉回 `distilbert/results_final_best_{lora,mlora}_20ep/` |
 | `scripts/commit_and_push.sh` | 交互式推 GitHub |
 
 查看任务：`bjobs`；日志：`JOBID.out`、`JOBID.err`。

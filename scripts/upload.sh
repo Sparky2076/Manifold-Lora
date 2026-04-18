@@ -114,6 +114,8 @@ if command -v rsync >/dev/null 2>&1; then
         "$PROJECT_DIR/scripts/upload.ps1" \
         "$PROJECT_DIR/scripts/pull_results.sh" \
         "$PROJECT_DIR/scripts/pull_results.ps1" \
+        "$PROJECT_DIR/scripts/pull_distilbert_best_20ep.sh" \
+        "$PROJECT_DIR/scripts/pull_distilbert_best_20ep.ps1" \
         "$PROJECT_DIR/scripts/pull_deepseek_results.sh" \
         "$PROJECT_DIR/scripts/pull_deepseek_results.ps1" \
         "$PROJECT_DIR/scripts/refresh_results_and_publish.sh" \

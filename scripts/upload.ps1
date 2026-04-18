@@ -44,6 +44,8 @@ $uploadOnly = @(
     "$ProjectDir/scripts/upload.ps1",
     "$ProjectDir/scripts/pull_results.sh",
     "$ProjectDir/scripts/pull_results.ps1",
+    "$ProjectDir/scripts/pull_distilbert_best_20ep.sh",
+    "$ProjectDir/scripts/pull_distilbert_best_20ep.ps1",
     "$ProjectDir/scripts/pull_deepseek_results.sh",
     "$ProjectDir/scripts/pull_deepseek_results.ps1",
     "$ProjectDir/scripts/refresh_results_and_publish.sh",
