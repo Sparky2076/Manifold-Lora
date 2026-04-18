@@ -20,7 +20,9 @@ mkdir -p "$LOCAL_RESULTS"
 echo "从 $SERVER:~/$REMOTE_DIR/$RESULTS_REL 拉取到 $LOCAL_RESULTS"
 
 scp "$SERVER:~/$REMOTE_DIR/$RESULTS_REL/summary.csv" "$LOCAL_RESULTS/"
-scp "$SERVER:~/$REMOTE_DIR/$RESULTS_REL/missing_runs.csv" "$LOCAL_RESULTS/"
+if ! scp "$SERVER:~/$REMOTE_DIR/$RESULTS_REL/missing_runs.csv" "$LOCAL_RESULTS/" 2>/dev/null; then
+  echo "[warn] 远端无 missing_runs.csv，跳过（可先在服务器跑 aggregate_results 生成）。" >&2
+fi
 
 # 分析报告优先新路径；不存在时回退旧 docs 路径。
 if ! scp "$SERVER:~/$REMOTE_DIR/$RESULTS_REL/distilbert_grid_analysis.md" "$LOCAL_RESULTS/" 2>/dev/null; then

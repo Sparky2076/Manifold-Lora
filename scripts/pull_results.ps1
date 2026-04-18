@@ -32,9 +32,11 @@ function Try-Scp {
     }
 }
 
-# 必拉: summary + missing
+# 必拉: summary；missing 可选
 scp "$Server`:~/$RemoteDir/$ResultsRel/summary.csv" $LocalResults
-scp "$Server`:~/$RemoteDir/$ResultsRel/missing_runs.csv" $LocalResults
+if (-not (Try-Scp "$ResultsRel/missing_runs.csv" $LocalResults)) {
+    Write-Warning "远端无 missing_runs.csv，跳过（可先在服务器跑 aggregate_results 生成）。"
+}
 
 # 分析报告: 新路径 results/；若不存在则回退旧路径 docs/
 $ok = Try-Scp "$ResultsRel/distilbert_grid_analysis.md" $LocalResults
