@@ -4,6 +4,7 @@
 #   $env:COMMIT_MSG="update full 375 results"; .\scripts\refresh_results_and_publish.ps1
 # 可选:
 #   $env:SERVER / $env:REMOTE_DIR 传给 pull_results.ps1
+#   $env:RESULTS_REL="distilbert_autogrid/results_mlora"   mLoRA 汇总目录
 #   $env:ALLOW_INCOMPLETE=1       允许未跑满时继续（默认严格要求 375）
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +12,11 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 Set-Location $ProjectDir
 
-Write-Host "==> [1/5] 拉取服务器结果到本地"
+$ResultsRel = if ($env:RESULTS_REL) { $env:RESULTS_REL } else { "distilbert_autogrid/results" }
+$env:RESULTS_REL = $ResultsRel
+$ResultsRoot = Join-Path $ProjectDir $ResultsRel
+
+Write-Host "==> [1/5] 拉取服务器结果到本地 ($ResultsRel)"
 & "$ScriptDir/pull_results.ps1"
 
 $strictArgs = @()
@@ -20,20 +25,22 @@ if ($env:ALLOW_INCOMPLETE -eq "1") {
 }
 
 Write-Host "==> [2/5] 本地汇总（默认要求跑满 375）"
-python -m distilbert_autogrid.aggregate_results @strictArgs
+python -m distilbert_autogrid.aggregate_results --results-root $ResultsRoot @strictArgs
 
 Write-Host "==> [3/5] 本地分析（默认要求跑满 375）"
-python -m distilbert_autogrid.analyze_results @strictArgs
+$summaryPath = Join-Path $ResultsRoot "summary.csv"
+$analysisPath = Join-Path $ResultsRoot "distilbert_grid_analysis.md"
+python -m distilbert_autogrid.analyze_results --summary $summaryPath -o $analysisPath @strictArgs
 
 Write-Host "==> [4/5] git 状态"
 git status -sb
 
 Write-Host "==> [5/5] 提交并推送"
 git add `
-    distilbert_autogrid/results/summary.csv `
-    distilbert_autogrid/results/missing_runs.csv `
-    distilbert_autogrid/results/distilbert_grid_analysis.md `
-    distilbert_autogrid/results/distilbert_grid_snapshot.md
+    "$ResultsRel/summary.csv" `
+    "$ResultsRel/missing_runs.csv" `
+    "$ResultsRel/distilbert_grid_analysis.md" `
+    "$ResultsRel/distilbert_grid_snapshot.md"
 
 git diff --cached --quiet
 if ($LASTEXITCODE -eq 0) {

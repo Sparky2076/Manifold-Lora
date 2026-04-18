@@ -3,18 +3,21 @@
 #   .\scripts\pull_results.ps1
 #   $env:SERVER="wangxiao@202.121.138.221"; .\scripts\pull_results.ps1
 #   $env:REMOTE_DIR="Manifold-Lora"; .\scripts\pull_results.ps1
+# mLoRA:
+#   $env:RESULTS_REL="distilbert_autogrid/results_mlora"; .\scripts\pull_results.ps1
 
 $ErrorActionPreference = "Stop"
 
 $Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.221" }
 $RemoteDir = if ($env:REMOTE_DIR) { $env:REMOTE_DIR } else { "Manifold-Lora" }
+$ResultsRel = if ($env:RESULTS_REL) { $env:RESULTS_REL } else { "distilbert_autogrid/results" }
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
-$LocalResults = Join-Path $ProjectDir "distilbert_autogrid/results"
+$LocalResults = Join-Path $ProjectDir $ResultsRel
 
 New-Item -ItemType Directory -Path $LocalResults -Force | Out-Null
 
-Write-Host "从 $Server 拉取结果到 $LocalResults"
+Write-Host "从 $Server`:~/$RemoteDir/$ResultsRel 拉取结果到 $LocalResults"
 
 function Try-Scp {
     param(
@@ -30,11 +33,11 @@ function Try-Scp {
 }
 
 # 必拉: summary + missing
-scp "$Server`:~/$RemoteDir/distilbert_autogrid/results/summary.csv" $LocalResults
-scp "$Server`:~/$RemoteDir/distilbert_autogrid/results/missing_runs.csv" $LocalResults
+scp "$Server`:~/$RemoteDir/$ResultsRel/summary.csv" $LocalResults
+scp "$Server`:~/$RemoteDir/$ResultsRel/missing_runs.csv" $LocalResults
 
 # 分析报告: 新路径 results/；若不存在则回退旧路径 docs/
-$ok = Try-Scp "distilbert_autogrid/results/distilbert_grid_analysis.md" $LocalResults
+$ok = Try-Scp "$ResultsRel/distilbert_grid_analysis.md" $LocalResults
 if (-not $ok) {
     Write-Host "results 下未找到分析报告，尝试旧路径 docs/ ..."
     $ok = Try-Scp "docs/distilbert_grid_analysis.md" $LocalResults
@@ -44,6 +47,6 @@ if (-not $ok) {
 }
 
 # 快照文档可选
-$null = Try-Scp "distilbert_autogrid/results/distilbert_grid_snapshot.md" $LocalResults
+$null = Try-Scp "$ResultsRel/distilbert_grid_snapshot.md" $LocalResults
 
 Write-Host "拉取完成。"
