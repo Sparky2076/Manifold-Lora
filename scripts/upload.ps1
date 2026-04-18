@@ -54,6 +54,9 @@ $uploadOnly = @(
     "$ProjectDir/scripts/server_submit_distilbert_grid.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_force.sh",
     "$ProjectDir/scripts/server_submit_distilbert_grid_mlora.sh",
+    "$ProjectDir/scripts/server_submit_distilbert_best_20ep.sh",
+    "$ProjectDir/scripts/server_submit_distilbert_best_lora_20ep.sh",
+    "$ProjectDir/scripts/server_submit_distilbert_best_mlora_20ep.sh",
     "$ProjectDir/scripts/server_submit_deepseek_grid.sh",
     "$ProjectDir/scripts/server_submit_deepseek_grid_mlora.sh",
     "$ProjectDir/scripts/kill_distilbert_grid_bjobs.sh"
