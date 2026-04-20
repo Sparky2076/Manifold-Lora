@@ -15,6 +15,7 @@ if [[ -z "${RESULTS_ROOT:-}" ]]; then
   fi
 fi
 
+# GRID_RESUME=1（默认）：只补未完成的组合。GRID_RESUME=0：强制对每个组合 bsub（无视已有结果），且**只跑一轮递交**后退出，避免无限重复整网提交。
 GRID_RESUME="${GRID_RESUME:-1}"
 # 与 DistilBERT 网格一致：默认限制 PEND，避免连点 bsub 触发站点「Pending 上限 / User permission denied」后整脚本退出。
 # GRID_MAX_PEND=1 → 仅当 PEND=0 时才再交下一单；GRID_MAX_RUN=0 表示不限制 RUN（可自行设 5 等）。
@@ -117,6 +118,13 @@ st = int(os.environ.get('MAX_STEPS', str(MAX_STEPS_DEFAULT)))
 for lr, r, alpha, wd in iter_grid():
     print(f'{run_dir_name(lr, r, alpha, st, wd)}\\t{lr}\\t{r}\\t{alpha}\\t{wd}')
 ")
+
+  # GRID_RESUME=0：全量重交只做一轮；否则队列排空后会再次扫描且仍不 skip，会把 90 组整网反复 bsub（无限循环）。
+  if [[ "${GRID_RESUME}" == "0" ]]; then
+    echo "[deepseek-grid] GRID_RESUME=0: one-shot pass submitted ${submit_n} job(s); draining queue then exit (no second pass)." >&2
+    _grid_wait_all_done
+    break
+  fi
 
   if [[ "$need_n" -eq 0 ]]; then
     echo "[deepseek-grid] all combos complete (MAX_STEPS=${MAX_STEPS})."

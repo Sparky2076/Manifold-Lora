@@ -27,6 +27,10 @@ nohup bash scripts/server_submit_deepseek_grid_mlora.sh > deepseek_grid_mlora_su
 tail -f deepseek_grid_mlora_submit.log
 ```
 
+## `GRID_RESUME=0`（全量重跑）注意
+
+设为 `0` 时会对**每个组合都再 `bsub` 一次**（无视已有 `test_sft.csv`）。脚本在**第一轮递交结束并等队列排空后就会退出**，不会 endless 重复整网；若你曾用旧脚本看到「90 组已满仍在不停提交」，多半是旧逻辑在第二轮又把 90 组交了一遍——请 `git pull` 更新。
+
 ## 队列节流（默认）
 
 `run_grid_bsub.sh` 默认 **`GRID_MAX_PEND=1`**：仅当本账号 **`PEND=0`** 时才再 `bsub` 下一单，减轻站点「Pending 上限 / User permission denied」。若仍偶发拒绝，脚本会**等待后重试**，不会整段退出。可调：`GRID_MAX_RUN`、`GRID_MAX_PEND`、`GRID_POLL_SEC`、`SUBMIT_SLEEP_SEC`（关闭 PEND 限制：`GRID_MAX_PEND=0`，不推荐）。

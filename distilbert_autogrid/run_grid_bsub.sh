@@ -129,6 +129,13 @@ for lr, r, alpha, wd in iter_grid():
     print(f'{name}\t{lr}\t{r}\t{alpha}\t{wd}')
 ")
 
+  # GRID_RESUME=0：全量重交只做一轮；否则排空后会再次整网 bsub，形成无限循环。
+  if [[ "${GRID_RESUME}" == "0" ]]; then
+    echo "[grid] GRID_RESUME=0: one-shot pass submitted ${submit_n} job(s); draining queue then exit (no second pass)." >&2
+    _grid_wait_all_done
+    break
+  fi
+
   if [[ "$need_n" -eq 0 ]]; then
     echo "[grid] all combos complete (EPOCHS=${EPOCHS})."
     break
