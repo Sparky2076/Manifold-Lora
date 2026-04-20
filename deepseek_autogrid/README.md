@@ -27,6 +27,12 @@ nohup bash scripts/server_submit_deepseek_grid_mlora.sh > deepseek_grid_mlora_su
 tail -f deepseek_grid_mlora_submit.log
 ```
 
+## 找不到「提交脚本」进程？
+
+- **`bjobs` 里的 JOBID** 是 **LSF 训练作业**；**网格提交循环**是登录节点上的 **bash 进程**，两者不是同一个号。
+- **`pgrep` 要在启动 `nohup` 的那台登录节点上执行**（例如 `bjobs` 里 `FROM_HOST=mgtgpu01` 则到 `mgtgpu01` 上 `pgrep`）。换一台登录节点常会「查不到」。
+- 更新脚本后，提交循环启动时会写 **`deepseek_autogrid/.grid_submitter.pid`**，可查：`cat deepseek_autogrid/.grid_submitter.pid` 再 `ps -p <pid> -f`；或运行 **`bash scripts/grid_submitter_status.sh`**。
+
 ## `GRID_RESUME=0`（全量重跑）注意
 
 设为 `0` 时会对**每个组合都再 `bsub` 一次**（无视已有 `test_sft.csv`）。脚本在**第一轮递交结束并等队列排空后就会退出**，不会 endless 重复整网；若你曾用旧脚本看到「90 组已满仍在不停提交」，多半是旧逻辑在第二轮又把 90 组交了一遍——请 `git pull` 更新。

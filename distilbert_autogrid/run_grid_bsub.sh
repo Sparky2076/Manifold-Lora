@@ -21,6 +21,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+GRID_PID_FILE="${GRID_PID_FILE:-$PROJECT_DIR/distilbert_autogrid/.grid_submitter.pid}"
+echo $$ >"$GRID_PID_FILE"
+trap 'rm -f "$GRID_PID_FILE"' EXIT
+echo "[grid] submitter_pid=$$ host=$(hostname)  | 定位: bash scripts/grid_submitter_status.sh 或 ps -p $$ -f" >&2
+
 GRID_RESUME="${GRID_RESUME:-1}"
 GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
 GRID_MAX_PEND="${GRID_MAX_PEND:-0}"

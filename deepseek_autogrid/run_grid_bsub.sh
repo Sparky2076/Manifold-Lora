@@ -6,6 +6,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+# 便于在登录节点上定位提交循环：与 bjobs 里训练 JOBID 不同，这是本机 bash 的 PID。
+GRID_PID_FILE="${GRID_PID_FILE:-$PROJECT_DIR/deepseek_autogrid/.grid_submitter.pid}"
+echo $$ >"$GRID_PID_FILE"
+trap 'rm -f "$GRID_PID_FILE"' EXIT
+echo "[deepseek-grid] submitter_pid=$$ host=$(hostname)  | 定位: bash scripts/grid_submitter_status.sh 或 ps -p $$ -f" >&2
+
 LORA_TYPE="${LORA_TYPE:-default}"
 if [[ -z "${RESULTS_ROOT:-}" ]]; then
   if [[ "${LORA_TYPE}" == "mlora" ]]; then
