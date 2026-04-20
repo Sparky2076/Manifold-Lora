@@ -27,11 +27,13 @@ nohup bash scripts/server_submit_deepseek_grid_mlora.sh > deepseek_grid_mlora_su
 tail -f deepseek_grid_mlora_submit.log
 ```
 
+`server_submit_deepseek_grid_mlora.sh` 内会 **`export GRID_RESUME=1`**，避免继承此前 shell 里误留的 **`GRID_RESUME=0`** 导致整网反复重交。若你**刻意**要全量重跑，请用 `GRID_RESUME=0 bash scripts/server_submit_deepseek_grid.sh`，并自行 `export LORA_TYPE=mlora` 与 `RESULTS_ROOT=.../results_mlora`。
+
 ## 找不到「提交脚本」进程？
 
 - **`bjobs` 里的 JOBID** 是 **LSF 训练作业**；**网格提交循环**是登录节点上的 **bash 进程**，两者不是同一个号。
 - **`pgrep` 要在启动 `nohup` 的那台登录节点上执行**（例如 `bjobs` 里 `FROM_HOST=mgtgpu01` 则到 `mgtgpu01` 上 `pgrep`）。换一台登录节点常会「查不到」。
-- 更新脚本后，提交循环启动时会写 **`deepseek_autogrid/.grid_submitter.pid`**，可查：`cat deepseek_autogrid/.grid_submitter.pid` 再 `ps -p <pid> -f`；或运行 **`bash scripts/grid_submitter_status.sh`**。
+- 更新脚本后，提交循环会写 **`deepseek_autogrid/.grid_submitter.pid`**（LoRA）或 **`.grid_submitter_mlora.pid`**（mLoRA）；或运行 **`bash scripts/grid_submitter_status.sh`**。
 
 ## `GRID_RESUME=0`（全量重跑）注意
 

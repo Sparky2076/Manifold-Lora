@@ -5,6 +5,7 @@ __pycache__/
 
 # 网格提交循环 PID（本机进程，非 LSF job）
 deepseek_autogrid/.grid_submitter.pid
+deepseek_autogrid/.grid_submitter_mlora.pid
 distilbert_autogrid/.grid_submitter.pid
 
 # 勿将根目录临时指标误提交（实验结果请放 results/ 或 deepseek/results/）
