@@ -1,0 +1,8 @@
+{
+  "adapter_type": "lora",
+  "max_steps": 1200,
+  "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/deepseek/results_final_lora_long_st1200",
+  "replaced_linear_modules": 112,
+  "status": "done",
+  "source": "job_log_shared_in_chat"
+}

@@ -1,0 +1,8 @@
+{
+  "adapter_type": "mlora",
+  "max_steps": 1500,
+  "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/deepseek/results_final_mlora_long_st1500",
+  "replaced_linear_modules": 112,
+  "status": "done",
+  "source": "job_log_shared_in_chat"
+}
