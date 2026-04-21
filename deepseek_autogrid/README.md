@@ -77,3 +77,7 @@ python -m deepseek_autogrid.analyze_results
 - `summary.csv`
 - `missing_runs.csv`
 - `deepseek_grid_analysis.md`
+
+### 本仓库已随代码提交的 LoRA 网格产物（数据说明）
+
+当前默认网格为 **90 组**（`lr×r×alpha×wd`，`MAX_STEPS=500`）。仓库内 **`deepseek_autogrid/results/summary.csv`** 为聚合后的每组合一行指标（含 `best_eval_perplexity`、`metrics_dir`、`status` 等）；**`deepseek_autogrid/results/deepseek_grid_analysis.md`** 为由 `python -m deepseek_autogrid.analyze_results` 生成的 Markdown 统计与 Top 组合说明。逐 run 的大目录仍由 `.gitignore` 忽略，仅保留轻量汇总与说明文件。`aggregate_results.py` 仅收录与 `config.iter_grid()` 目录名一致的 run，避免旧实验目录再次混入 `summary.csv`。

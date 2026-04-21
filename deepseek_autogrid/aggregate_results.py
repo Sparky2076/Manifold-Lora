@@ -6,7 +6,14 @@ import csv
 import json
 from pathlib import Path
 
-from deepseek_autogrid.config import PROJECT_ROOT, RESULTS_ROOT, grid_size
+from deepseek_autogrid.config import (
+    MAX_STEPS_DEFAULT,
+    PROJECT_ROOT,
+    RESULTS_ROOT,
+    grid_size,
+    iter_grid,
+    run_dir_name,
+)
 
 
 def read_meta(run_dir: Path) -> dict | None:
@@ -69,8 +76,13 @@ def aggregate() -> int:
         "status",
     ]
 
+    allowed_names = {
+        run_dir_name(lr, r, a, MAX_STEPS_DEFAULT, wd) for lr, r, a, wd in iter_grid()
+    }
     rows = []
     for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        if run_dir.name not in allowed_names:
+            continue
         test_csv = run_dir / "test_sft.csv"
         meta = read_meta(run_dir)
         best_ppl, best_loss, best_it = best_from_test(test_csv)
