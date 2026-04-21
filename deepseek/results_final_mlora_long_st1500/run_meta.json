@@ -1,8 +1,12 @@
 {
-  "adapter_type": "mlora",
+  "lr": 0.002,
+  "lora_r": 64,
+  "lora_alpha": 64.0,
+  "weight_decay": 0.01,
   "max_steps": 1500,
+  "eval_every": 100,
+  "lora_type": "mlora",
   "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/deepseek/results_final_mlora_long_st1500",
-  "replaced_linear_modules": 112,
-  "status": "done",
-  "source": "job_log_shared_in_chat"
+  "command": [],
+  "created_utc": "2026-04-21T12:20:02+00:00"
 }
