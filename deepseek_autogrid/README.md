@@ -68,6 +68,17 @@ python -m deepseek_autogrid.analyze_results
 
 阶段性检查可加 `--allow-incomplete`。
 
+### BBH 额外汇总（不替代原 perplexity 逻辑）
+
+若你对某些 run 额外写入了 `bbh_eval.json`（见 `deepseek/README.md` 的 BBH 小节），可独立汇总：
+
+```bash
+python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results
+python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results_mlora
+```
+
+输出 `bbh_summary.csv`（按 `bbh_mean_acc` 降序），不会影响现有 `summary.csv` / `analyze_results`。
+
 ## 结果目录
 
 - LoRA: `deepseek_autogrid/results/`
@@ -81,3 +92,54 @@ python -m deepseek_autogrid.analyze_results
 ### 本仓库已随代码提交的 LoRA 网格产物（数据说明）
 
 当前默认网格为 **90 组**（`lr×r×alpha×wd`，`MAX_STEPS=500`）。仓库内 **`deepseek_autogrid/results/summary.csv`** 为聚合后的每组合一行指标（含 `best_eval_perplexity`、`metrics_dir`、`status` 等）；**`deepseek_autogrid/results/deepseek_grid_analysis.md`** 为由 `python -m deepseek_autogrid.analyze_results` 生成的 Markdown 统计与 Top 组合说明。逐 run 的大目录仍由 `.gitignore` 忽略，仅保留轻量汇总与说明文件。`aggregate_results.py` 仅收录与 `config.iter_grid()` 目录名一致的 run，避免旧实验目录再次混入 `summary.csv`。
+
+## BBH 专用训练网格（独立，不影响原 grid）
+
+若需要单独跑 BBH 调参训练网格（你要求的 `lr=3e-3..3e-7` 对数、`r=[16,32,64]`），使用独立脚本：
+
+```bash
+bash scripts/server_submit_deepseek_bbh_grid.sh        # LoRA
+bash scripts/server_submit_deepseek_bbh_grid_mlora.sh  # mLoRA
+```
+
+该网格目录在 `deepseek_bbh_autogrid/`，默认结果输出：
+- LoRA: `deepseek_bbh_autogrid/results/`
+- mLoRA: `deepseek_bbh_autogrid/results_mlora/`
+
+跑完汇总：
+
+```bash
+python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results
+python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results_mlora
+```
+
+`summary.csv` 中新增两列用于衡量“达到局部最优后是否崩盘”：
+- `post_peak_last_over_best`：最后一步 perplexity / 最优 perplexity（越接近 1 越稳）
+- `post_peak_tail_mean_over_best`：最优点之后区间均值 / 最优 perplexity（越小越稳）
+
+### 直接可跑命令（服务器）
+
+LoRA:
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+nohup bash scripts/server_submit_deepseek_bbh_grid.sh > deepseek_bbh_grid_submit.log 2>&1 &
+tail -f deepseek_bbh_grid_submit.log
+```
+
+mLoRA:
+
+```bash
+cd ~/Manifold-Lora
+export CONDA_ROOT="$HOME/miniconda3"
+nohup bash scripts/server_submit_deepseek_bbh_grid_mlora.sh > deepseek_bbh_grid_mlora_submit.log 2>&1 &
+tail -f deepseek_bbh_grid_mlora_submit.log
+```
+
+跑完一圈后汇总（看崩盘指标）：
+
+```bash
+python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results
+python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results_mlora
+```
