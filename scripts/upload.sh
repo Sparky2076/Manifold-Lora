@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # 仅上传 DistilBERT / DeepSeek 网格所需文件（体积小、速度快）
-# 含：根目录共享模块、distilbert/、distilbert_autogrid/、deepseek/、deepseek_autogrid/、scripts/
+# 含：根目录共享模块、distilbert/、distilbert_autogrid/、deepseek/、deepseek_autogrid/、deepseek_bbh_autogrid/、scripts/
 # 用法: bash scripts/upload.sh
 
 set -euo pipefail
 
-SERVER="${SERVER:-wangxiao@202.121.138.221}"
+SERVER="${SERVER:-wangxiao@202.121.138.196}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -93,6 +93,7 @@ _sync_all_without_rsync() {
         distilbert_autogrid \
         deepseek \
         deepseek_autogrid \
+        deepseek_bbh_autogrid \
         scripts 2>/dev/null) | \
         _ssh "$SERVER" "mkdir -p ~/$REMOTE_DIR && tar -xf - -C ~/$REMOTE_DIR"
 }
@@ -109,6 +110,7 @@ if command -v rsync >/dev/null 2>&1; then
     _sync_tree_incremental "$PROJECT_DIR/distilbert_autogrid" "distilbert_autogrid"
     _sync_tree_incremental "$PROJECT_DIR/deepseek" "deepseek"
     _sync_tree_incremental "$PROJECT_DIR/deepseek_autogrid" "deepseek_autogrid"
+    _sync_tree_incremental "$PROJECT_DIR/deepseek_bbh_autogrid" "deepseek_bbh_autogrid"
 
     _scp "$PROJECT_DIR/scripts/upload.sh" \
         "$PROJECT_DIR/scripts/upload.ps1" \
@@ -132,6 +134,12 @@ if command -v rsync >/dev/null 2>&1; then
         "$PROJECT_DIR/scripts/server_submit_distilbert_best_mlora_20ep.sh" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_grid.sh" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_grid_mlora.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_grid.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_grid_mlora.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_top10.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_second_grid.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_second_grid_mlora.sh" \
         "$PROJECT_DIR/scripts/kill_distilbert_grid_bjobs.sh" \
         "$SERVER:~/$REMOTE_DIR/scripts/" 2>/dev/null || true
 else

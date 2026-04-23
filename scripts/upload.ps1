@@ -2,7 +2,7 @@
 # 用法: .\scripts\upload.ps1  或  pwsh -File scripts/upload.ps1
 
 $ErrorActionPreference = "Stop"
-$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.221" }
+$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.196" }
 $RemoteDir = if ($env:REMOTE_DIR) { $env:REMOTE_DIR } else { "Manifold-Lora" }
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
@@ -38,6 +38,7 @@ Sync-TreeIncremental "${ProjectDir}/distilbert" "distilbert"
 Sync-TreeIncremental "${ProjectDir}/distilbert_autogrid" "distilbert_autogrid"
 Sync-TreeIncremental "${ProjectDir}/deepseek" "deepseek"
 Sync-TreeIncremental "${ProjectDir}/deepseek_autogrid" "deepseek_autogrid"
+Sync-TreeIncremental "${ProjectDir}/deepseek_bbh_autogrid" "deepseek_bbh_autogrid"
 
 $uploadOnly = @(
     "$ProjectDir/scripts/upload.sh",
@@ -62,6 +63,12 @@ $uploadOnly = @(
     "$ProjectDir/scripts/server_submit_distilbert_best_mlora_20ep.sh",
     "$ProjectDir/scripts/server_submit_deepseek_grid.sh",
     "$ProjectDir/scripts/server_submit_deepseek_grid_mlora.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_bbh.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_bbh_grid.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_bbh_grid_mlora.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_bbh_top10.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_bbh_second_grid.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_bbh_second_grid_mlora.sh",
     "$ProjectDir/scripts/kill_distilbert_grid_bjobs.sh"
 )
 foreach ($f in $uploadOnly) {
