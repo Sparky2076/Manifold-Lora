@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-SERVER="${SERVER:-wangxiao@202.121.138.196}"
+SERVER="${SERVER:-wangxiao@202.121.138.197}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -118,6 +118,8 @@ if command -v rsync >/dev/null 2>&1; then
         "$PROJECT_DIR/scripts/pull_results.ps1" \
         "$PROJECT_DIR/scripts/pull_distilbert_best_20ep.sh" \
         "$PROJECT_DIR/scripts/pull_distilbert_best_20ep.ps1" \
+        "$PROJECT_DIR/scripts/pull_distilbert_mlora_refine_results.sh" \
+        "$PROJECT_DIR/scripts/pull_distilbert_mlora_refine_results.ps1" \
         "$PROJECT_DIR/scripts/grid_submitter_status.sh" \
         "$PROJECT_DIR/scripts/pull_deepseek_results.sh" \
         "$PROJECT_DIR/scripts/pull_deepseek_results.ps1" \
@@ -129,6 +131,9 @@ if command -v rsync >/dev/null 2>&1; then
         "$PROJECT_DIR/scripts/server_submit_distilbert_grid.sh" \
         "$PROJECT_DIR/scripts/server_submit_distilbert_grid_force.sh" \
         "$PROJECT_DIR/scripts/server_submit_distilbert_grid_mlora.sh" \
+        "$PROJECT_DIR/scripts/server_submit_distilbert_refine_grid.sh" \
+        "$PROJECT_DIR/scripts/server_submit_distilbert_refine_grid_mlora.sh" \
+        "$PROJECT_DIR/scripts/restart_distilbert_refine_grid.sh" \
         "$PROJECT_DIR/scripts/server_submit_distilbert_best_20ep.sh" \
         "$PROJECT_DIR/scripts/server_submit_distilbert_best_lora_20ep.sh" \
         "$PROJECT_DIR/scripts/server_submit_distilbert_best_mlora_20ep.sh" \
