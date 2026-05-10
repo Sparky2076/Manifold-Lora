@@ -140,6 +140,9 @@ if command -v rsync >/dev/null 2>&1; then
         "$PROJECT_DIR/scripts/server_submit_deepseek_grid.sh" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_grid_mlora.sh" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_bbh.sh" \
+        "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_topk_from_summary.sh" \
+        "$PROJECT_DIR/scripts/pick_topk_deepseek_runs.py" \
+        "$PROJECT_DIR/scripts/summarize_deepseek_bbh_results.py" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_grid.sh" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_grid_mlora.sh" \
         "$PROJECT_DIR/scripts/server_submit_deepseek_bbh_top10.sh" \

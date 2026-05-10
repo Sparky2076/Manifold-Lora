@@ -73,6 +73,7 @@ if not p.exists():
         "sft_preset": os.environ.get("SFT_PRESET", "alpaca_train_1k"),
         "sft_val_ratio": float(os.environ.get("SFT_VAL_RATIO", "0.2")),
         "lora_type": os.environ.get("LORA_TYPE", "default"),
+        "model_name": os.environ.get("MODEL_NAME", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"),
         "metrics_dir": str(Path(os.environ.get("METRICS_DIR", ".")).resolve()),
         "created_utc": datetime.now(timezone.utc).isoformat(),
     }

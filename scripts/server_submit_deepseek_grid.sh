@@ -15,5 +15,5 @@ echo "==> repo: $PROJECT_DIR"
 echo "==> [1/2] sed CRLF -> LF"
 sed -i 's/\r$//' scripts/*.sh distilbert/scripts/*.sh distilbert_autogrid/*.sh deepseek/scripts/*.sh deepseek_autogrid/*.sh 2>/dev/null || true
 
-echo "==> [2/2] run deepseek_autogrid/run_grid_bsub.sh (LORA_TYPE=${LORA_TYPE:-default})"
-exec bash "$PROJECT_DIR/deepseek_autogrid/run_grid_bsub.sh"
+echo "==> [2/2] run deepseek_autogrid/run_lora_grid_bsub.sh (LORA_TYPE=${LORA_TYPE:-default})"
+exec bash "$PROJECT_DIR/deepseek_autogrid/run_lora_grid_bsub.sh"

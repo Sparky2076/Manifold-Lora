@@ -16,6 +16,26 @@ python -m deepseek.main_sft \
 - `train_sft.csv`（`iteration,train_loss,train_perplexity`）
 - `test_sft.csv`（`iteration,eval_loss,eval_perplexity`）
 - `run_meta.json`
+- `lora_adapter.pt`（仅含 `lora_A`/`lora_B`，供 [`eval_bbh.py`](eval_bbh.py) 合并后跑 BBH）
+- `model_merged_hf/`（由 `python -m deepseek.eval_bbh` 在评测前生成，可复用）
+
+## BBH（lm-eval，阶段二）
+
+依赖：`pip install lm-eval`（及 `transformers`、`torch`；建议 `lm_eval[hf]`）。
+
+单机（需 GPU；`--limit` 可用于冒烟）：
+
+```bash
+python -m deepseek.eval_bbh --metrics_dir deepseek_autogrid/results/<run_name> --trust_remote_code
+```
+
+集群：设置 `METRICS_DIR`（或 `ADAPTER_PATH`）为某一 run 目录后：
+
+```bash
+bash deepseek/scripts/submit_bsub_bbh.sh
+```
+
+对 `summary.csv` 里 Top-K 自动递交：见 [`deepseek_autogrid/README.md`](../deepseek_autogrid/README.md) 两阶段说明。
 
 ## 服务器提交（单次）
 

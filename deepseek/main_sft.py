@@ -176,6 +176,17 @@ def main():
             _append_row(test_csv, [step, f"{eval_loss:.6f}", f"{eval_ppl:.6f}"])
 
     pbar.close()
+
+    adapter_sd = {
+        k: v.detach().cpu()
+        for k, v in model.state_dict().items()
+        if ("lora_A" in k or "lora_B" in k) and v is not None
+    }
+    if adapter_sd:
+        ap = metrics_dir / "lora_adapter.pt"
+        torch.save(adapter_sd, ap)
+        print(f"[done] saved {len(adapter_sd)} tensors -> {ap}")
+
     print(f"[done] max_steps={args.max_steps} metrics_dir={metrics_dir}")
 
 

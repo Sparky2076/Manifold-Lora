@@ -28,10 +28,10 @@ RUNS=(
 echo "[bbh-top10] submitting ${#RUNS[@]} jobs from $PROJECT_DIR"
 for RUN in "${RUNS[@]}"; do
   export JOB_NAME="bbh_${RUN}"
-  # If your adapter path is different, override ADAPTER_ROOT when running this script.
-  ADAPTER_ROOT="${ADAPTER_ROOT:-$HOME/Manifold-Lora/deepseek_bbh_autogrid/results}"
-  export ADAPTER_PATH="${ADAPTER_ROOT}/${RUN}"
-  export OUTPUT_JSON="$HOME/Manifold-Lora/deepseek_bbh_autogrid/results/${RUN}/bbh_eval.json"
+  ADAPTER_ROOT="${ADAPTER_ROOT:-$PROJECT_DIR/deepseek_autogrid/results}"
+  export METRICS_DIR="${ADAPTER_ROOT%/}/${RUN}"
+  export ADAPTER_PATH="$METRICS_DIR"
+  export OUTPUT_JSON="${METRICS_DIR}/bbh_eval.json"
   echo "[bbh-top10] submit ${RUN}"
   bash scripts/server_submit_deepseek_bbh.sh
 done
