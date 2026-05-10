@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+export DEEPSEEK_GRID_CONFIG_MODULE="${DEEPSEEK_GRID_CONFIG_MODULE:-deepseek_autogrid.config}"
+
 LORA_TYPE="${LORA_TYPE:-default}"
 if [[ -z "${RESULTS_ROOT:-}" ]]; then
   if [[ "${LORA_TYPE}" == "mlora" ]]; then
@@ -23,11 +25,11 @@ else
 fi
 echo $$ >"$GRID_PID_FILE"
 trap 'rm -f "$GRID_PID_FILE"' EXIT
-echo "[deepseek-grid] submitter_pid=$$ host=$(hostname) lora_type=${LORA_TYPE}  | 定位: bash scripts/grid_submitter_status.sh 或 ps -p $$ -f" >&2
+echo "[deepseek-grid] config_module=${DEEPSEEK_GRID_CONFIG_MODULE} submitter_pid=$$ host=$(hostname) lora_type=${LORA_TYPE}  | 定位: bash scripts/grid_submitter_status.sh 或 ps -p $$ -f" >&2
 
 # GRID_RESUME=1（默认）：只补未完成的组合。GRID_RESUME=0：强制对每个组合 bsub（无视已有结果），且**只跑一轮递交**后退出，避免无限重复整网提交。
 GRID_RESUME="${GRID_RESUME:-1}"
-# 与 DistilBERT 网格一致：默认限制 PEND，避免连点 bsub 触发站点「Pending 上限 / User permission denied」后整脚本退出。
+# DeepSeek 网格：默认限制 PEND，避免连点 bsub 触发站点「Pending 上限 / User permission denied」后整脚本退出。
 # GRID_MAX_PEND=1 → 仅当 PEND=0 时才再交下一单；GRID_MAX_RUN=0 表示不限制 RUN（可自行设 5 等）。
 GRID_MAX_RUN="${GRID_MAX_RUN:-0}"
 GRID_MAX_PEND="${GRID_MAX_PEND:-1}"
@@ -35,12 +37,12 @@ GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
 SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-180}"
 GRID_MAX_PASSES="${GRID_MAX_PASSES:-0}"
 
-export MAX_STEPS="${MAX_STEPS:-$(python -c "from deepseek_autogrid.config import MAX_STEPS_DEFAULT; print(MAX_STEPS_DEFAULT)")}"
-export EVAL_EVERY="${EVAL_EVERY:-$(python -c "from deepseek_autogrid.config import EVAL_EVERY_DEFAULT; print(EVAL_EVERY_DEFAULT)")}"
-export SFT_PRESET="${SFT_PRESET:-$(python -c "from deepseek_autogrid.config import SFT_PRESET_DEFAULT; print(SFT_PRESET_DEFAULT)")}"
-export SFT_VAL_RATIO="${SFT_VAL_RATIO:-$(python -c "from deepseek_autogrid.config import SFT_VAL_RATIO_DEFAULT; print(SFT_VAL_RATIO_DEFAULT)")}"
-export ADAM_BETA1="${ADAM_BETA1:-$(python -c "from deepseek_autogrid.config import ADAM_BETA1_FIXED; print(ADAM_BETA1_FIXED)")}"
-export ADAM_BETA2="${ADAM_BETA2:-$(python -c "from deepseek_autogrid.config import ADAM_BETA2_FIXED; print(ADAM_BETA2_FIXED)")}"
+export MAX_STEPS="${MAX_STEPS:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.MAX_STEPS_DEFAULT)")}"
+export EVAL_EVERY="${EVAL_EVERY:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.EVAL_EVERY_DEFAULT)")}"
+export SFT_PRESET="${SFT_PRESET:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.SFT_PRESET_DEFAULT)")}"
+export SFT_VAL_RATIO="${SFT_VAL_RATIO:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.SFT_VAL_RATIO_DEFAULT)")}"
+export ADAM_BETA1="${ADAM_BETA1:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.ADAM_BETA1_FIXED)")}"
+export ADAM_BETA2="${ADAM_BETA2:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.ADAM_BETA2_FIXED)")}"
 
 _grid_wait_slot() {
   [[ "$GRID_MAX_RUN" == "0" && "$GRID_MAX_PEND" == "0" ]] && return 0
@@ -122,11 +124,11 @@ while true; do
     submit_n=$((submit_n + 1))
     sleep "$SUBMIT_SLEEP_SEC"
   done < <(python -c "
-import os
-from deepseek_autogrid.config import iter_grid, run_dir_name, MAX_STEPS_DEFAULT
-st = int(os.environ.get('MAX_STEPS', str(MAX_STEPS_DEFAULT)))
-for lr, r, alpha, wd in iter_grid():
-    print(f'{run_dir_name(lr, r, alpha, st, wd)}\\t{lr}\\t{r}\\t{alpha}\\t{wd}')
+import os, importlib
+m = importlib.import_module(os.environ.get('DEEPSEEK_GRID_CONFIG_MODULE', 'deepseek_autogrid.config'))
+st = int(os.environ.get('MAX_STEPS', str(m.MAX_STEPS_DEFAULT)))
+for lr, r, alpha, wd in m.iter_grid():
+    print(f'{m.run_dir_name(lr, r, alpha, st, wd)}\\t{lr}\\t{r}\\t{alpha}\\t{wd}')
 ")
 
   # GRID_RESUME=0：全量重交只做一轮；否则队列排空后会再次扫描且仍不 skip，会把 90 组整网反复 bsub（无限循环）。

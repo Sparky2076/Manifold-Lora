@@ -4,16 +4,10 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 from pathlib import Path
 
-from deepseek_autogrid.config import (
-    MAX_STEPS_DEFAULT,
-    PROJECT_ROOT,
-    RESULTS_ROOT,
-    grid_size,
-    iter_grid,
-    run_dir_name,
-)
+from deepseek_autogrid.grid_config import load_grid_config
 
 
 def read_meta(run_dir: Path) -> dict | None:
@@ -48,12 +42,27 @@ def best_from_test(path: Path):
 
 def aggregate() -> int:
     p = argparse.ArgumentParser(description="Build DeepSeek summary.csv from results")
-    p.add_argument("--results-root", type=Path, default=RESULTS_ROOT)
+    p.add_argument("--results-root", type=Path, default=None, help="Default: RESULTS_ROOT from --config-module")
+    p.add_argument(
+        "--config-module",
+        type=str,
+        default=None,
+        help="Grid definition (default: env DEEPSEEK_GRID_CONFIG_MODULE or deepseek_autogrid.config). "
+        "Refine: deepseek_autogrid.config_refine",
+    )
     p.add_argument("--output", type=Path, default=None)
     p.add_argument("--allow-incomplete", action="store_true")
     args = p.parse_args()
 
-    root = args.results_root.resolve()
+    cfg = load_grid_config(args.config_module)
+    PROJECT_ROOT = cfg.PROJECT_ROOT
+    RESULTS_ROOT = cfg.RESULTS_ROOT
+    iter_grid = cfg.iter_grid
+    run_dir_name = cfg.run_dir_name
+    grid_size = cfg.grid_size
+    max_steps = int(os.environ.get("MAX_STEPS", str(cfg.MAX_STEPS_DEFAULT)))
+
+    root = (args.results_root or RESULTS_ROOT).resolve()
     out = args.output or (root / "summary.csv")
 
     fields = [
@@ -76,9 +85,7 @@ def aggregate() -> int:
         "status",
     ]
 
-    allowed_names = {
-        run_dir_name(lr, r, a, MAX_STEPS_DEFAULT, wd) for lr, r, a, wd in iter_grid()
-    }
+    allowed_names = {run_dir_name(lr, r, a, max_steps, wd) for lr, r, a, wd in iter_grid()}
     rows = []
     for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
         if run_dir.name not in allowed_names:

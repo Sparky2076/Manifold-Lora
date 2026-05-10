@@ -9,6 +9,24 @@
 3. **汇总 BBH**：`python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results` → `bbh_summary.csv`。若需与阶段一指标并排排名：  
    `python scripts/summarize_deepseek_bbh_results.py --results-root deepseek_autogrid/results --summary-csv deepseek_autogrid/results/summary.csv`。
 
+### DeepSeek 第二轮：按第一轮结果细搜（独立目录）
+
+第一轮产出在 **`deepseek_autogrid/results/`**（`summary.csv` / `deepseek_grid_analysis.md`）。细网格定义见 **`deepseek_autogrid/config_refine.py`**（只在 **2e-3～2e-4** 附近加密 lr、**r∈{32,64}**、alpha 加 48 等），输出到 **`deepseek_autogrid/results_refine/`**，与粗网格互不覆盖。
+
+```bash
+# 登录节点（与粗网格相同 bsub 链，独立 PID 文件与结果目录）
+nohup bash scripts/server_submit_deepseek_refine_grid.sh > deepseek_refine_submit.log 2>&1 &
+
+python -m deepseek_autogrid.aggregate_results \
+  --config-module deepseek_autogrid.config_refine \
+  --results-root deepseek_autogrid/results_refine
+python -m deepseek_autogrid.analyze_results \
+  --config-module deepseek_autogrid.config_refine \
+  --summary deepseek_autogrid/results_refine/summary.csv
+```
+
+对细网格跑 BBH Top-K 时，把 **`ADAPTER_ROOT`** / **`SUMMARY_CSV`** 指到 **`results_refine`** 即可（仍为 DeepSeek，与 DistilBERT 无关）。
+
 当前网格默认配置：
 
 - 数据：`alpaca_train_1k`

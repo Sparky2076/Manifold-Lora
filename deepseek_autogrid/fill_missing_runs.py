@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from deepseek_autogrid.config import MAX_STEPS_DEFAULT, PROJECT_ROOT, RESULTS_ROOT, iter_grid, run_dir_name
+from deepseek_autogrid.grid_config import load_grid_config
 
 
 def _rows(path: Path) -> int:
@@ -44,8 +44,14 @@ def _wait_slot(max_run: int, max_pend: int, poll_sec: int) -> None:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Find/submit missing DeepSeek grid runs")
-    p.add_argument("--results-root", type=Path, default=RESULTS_ROOT)
-    p.add_argument("--max-steps", type=int, default=MAX_STEPS_DEFAULT)
+    p.add_argument(
+        "--config-module",
+        type=str,
+        default=None,
+        help="Grid definition (default: env DEEPSEEK_GRID_CONFIG_MODULE or deepseek_autogrid.config).",
+    )
+    p.add_argument("--results-root", type=Path, default=None)
+    p.add_argument("--max-steps", type=int, default=None)
     p.add_argument("--output", type=Path, default=None)
     p.add_argument("--submit-bsub", action="store_true")
     p.add_argument("--submit-sleep-sec", type=int, default=int(os.environ.get("SUBMIT_SLEEP_SEC", "180") or "180"))
@@ -54,7 +60,15 @@ def main() -> int:
     p.add_argument("--grid-poll-sec", type=int, default=int(os.environ.get("GRID_POLL_SEC", "30") or "30"))
     args = p.parse_args()
 
-    root = args.results_root.resolve()
+    cfg = load_grid_config(args.config_module)
+    PROJECT_ROOT = cfg.PROJECT_ROOT
+    RESULTS_ROOT = cfg.RESULTS_ROOT
+    iter_grid = cfg.iter_grid
+    run_dir_name = cfg.run_dir_name
+    max_steps_default = cfg.MAX_STEPS_DEFAULT
+    max_steps = int(args.max_steps) if args.max_steps is not None else int(os.environ.get("MAX_STEPS", str(max_steps_default)))
+
+    root = (args.results_root or RESULTS_ROOT).resolve()
     out_csv = args.output or (root / "missing_runs.csv")
     out_csv.parent.mkdir(parents=True, exist_ok=True)
 
@@ -62,7 +76,7 @@ def main() -> int:
     total = complete = 0
     for lr, r, a, wd in iter_grid():
         total += 1
-        name = run_dir_name(lr, r, a, args.max_steps, wd)
+        name = run_dir_name(lr, r, a, max_steps, wd)
         run_dir = root / name
         rows = _rows(run_dir / "test_sft.csv")
         if rows >= 1:
@@ -107,7 +121,7 @@ def main() -> int:
         env["LORA_R"] = row["lora_r"]
         env["LORA_ALPHA"] = row["lora_alpha"]
         env["WEIGHT_DECAY"] = row["weight_decay"]
-        env["MAX_STEPS"] = str(args.max_steps)
+        env["MAX_STEPS"] = str(max_steps)
         env["METRICS_DIR"] = str((root / row["run_name"]).resolve())
         print(f"[deepseek fill_missing] submit {i}/{len(missing)}: {row['run_name']}")
         subprocess.run(["bash", str(submit_sh)], cwd=str(PROJECT_ROOT), env=env, check=False)

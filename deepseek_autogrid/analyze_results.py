@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from deepseek_autogrid.config import RESULTS_ROOT, grid_size
+from deepseek_autogrid.grid_config import load_grid_config
 
 
 def _f(x):
@@ -20,14 +20,25 @@ def _f(x):
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Build Markdown analysis from DeepSeek summary.csv")
-    p.add_argument("--summary", type=Path, default=RESULTS_ROOT / "summary.csv")
-    p.add_argument("--output", type=Path, default=RESULTS_ROOT / "deepseek_grid_analysis.md")
+    p.add_argument(
+        "--config-module",
+        type=str,
+        default=None,
+        help="Must match aggregate (default: env DEEPSEEK_GRID_CONFIG_MODULE or deepseek_autogrid.config).",
+    )
+    p.add_argument("--summary", type=Path, default=None)
+    p.add_argument("--output", type=Path, default=None)
     p.add_argument("--allow-incomplete", action="store_true")
     args = p.parse_args()
 
-    with args.summary.open(newline="", encoding="utf-8") as f:
+    cfg = load_grid_config(args.config_module)
+    rr = cfg.RESULTS_ROOT
+    summary_path = args.summary or (rr / "summary.csv")
+    output_path = args.output or (rr / "deepseek_grid_analysis.md")
+
+    with summary_path.open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    expected = grid_size()
+    expected = cfg.grid_size()
     ok_rows = [r for r in rows if r.get("status") == "ok" and _f(r.get("best_eval_perplexity")) is not None]
     if not args.allow_incomplete and len(ok_rows) < expected:
         raise SystemExit(f"Incomplete grid: ok rows {len(ok_rows)} < expected {expected}.")
@@ -82,10 +93,21 @@ def main() -> int:
         for k, n, mn, avg in _group(col):
             lines.append(f"| {gname} | {k} | {n} | {mn:.4f} | {avg:.4f} |")
 
-    lines += ["", "## 更新方式", "", "```bash", "python -m deepseek_autogrid.aggregate_results", "python -m deepseek_autogrid.analyze_results", "```"]
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text("\n".join(lines), encoding="utf-8")
-    print(f"Wrote {args.output.resolve()}")
+    lines += [
+        "",
+        "## 更新方式",
+        "",
+        "```bash",
+        "python -m deepseek_autogrid.aggregate_results",
+        "python -m deepseek_autogrid.analyze_results",
+        "# 细网格（config_refine + results_refine）：",
+        "# python -m deepseek_autogrid.aggregate_results --config-module deepseek_autogrid.config_refine --results-root deepseek_autogrid/results_refine",
+        "# python -m deepseek_autogrid.analyze_results --config-module deepseek_autogrid.config_refine --summary deepseek_autogrid/results_refine/summary.csv",
+        "```",
+    ]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Wrote {output_path.resolve()}")
     return 0
 
 

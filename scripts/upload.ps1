@@ -63,6 +63,7 @@ $uploadOnly = @(
     "$ProjectDir/scripts/server_submit_distilbert_best_mlora_20ep.sh",
     "$ProjectDir/scripts/server_submit_deepseek_grid.sh",
     "$ProjectDir/scripts/server_submit_deepseek_grid_mlora.sh",
+    "$ProjectDir/scripts/server_submit_deepseek_refine_grid.sh",
     "$ProjectDir/scripts/server_submit_deepseek_bbh.sh",
     "$ProjectDir/scripts/server_submit_deepseek_bbh_topk_from_summary.sh",
     "$ProjectDir/scripts/pick_topk_deepseek_runs.py",
