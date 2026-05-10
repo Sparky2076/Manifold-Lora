@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compute node: merge LoRA + run lm-eval BBH for one SFT run directory.
+# Compute node: merge LoRA (unless SKIP_MERGE=1) + run lm-eval BBH.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -22,6 +22,14 @@ TORCH_DTYPE="${TORCH_DTYPE:-}"
 TRUST_FLAG=()
 if [[ "${TRUST_REMOTE_CODE:-0}" == "1" ]]; then
   TRUST_FLAG=(--trust_remote_code)
+fi
+REMERGE_FLAG=()
+if [[ "${FORCE_REMERGE:-0}" == "1" ]]; then
+  REMERGE_FLAG=(--force_remerge)
+fi
+SKIP_MERGE_ARGS=()
+if [[ "${SKIP_MERGE:-0}" == "1" ]]; then
+  SKIP_MERGE_ARGS=(--merged_hf_dir "${MERGED_HF_DIR:-$METRICS_DIR/model_merged_hf}")
 fi
 
 _resolve_conda_sh() {
@@ -49,9 +57,11 @@ CONDA_ENV_NAME="${CONDA_ENV_NAME:-torch}"
 conda activate "$CONDA_ENV_NAME"
 
 export CUDA_DEVICE_ORDER="${CUDA_DEVICE_ORDER:-PCI_BUS_ID}"
-echo "[run_deepseek_bbh_bsub] host=$(hostname) METRICS_DIR=$METRICS_DIR" >&2
+echo "[run_deepseek_bbh_bsub] host=$(hostname) METRICS_DIR=$METRICS_DIR SKIP_MERGE=${SKIP_MERGE:-0}" >&2
 
 ARGS=(--metrics_dir "$METRICS_DIR" --output_json "$OUTPUT_JSON" --tasks "$TASKS" --num_fewshot "$NUM_FEWSHOT" --batch_size "$EVAL_BATCH_SIZE")
+[[ "${#SKIP_MERGE_ARGS[@]}" -gt 0 ]] && ARGS+=("${SKIP_MERGE_ARGS[@]}")
+[[ "${#REMERGE_FLAG[@]}" -gt 0 ]] && ARGS+=("${REMERGE_FLAG[@]}")
 [[ -n "$MODEL_NAME" ]] && ARGS+=(--model_name "$MODEL_NAME")
 [[ -n "$TORCH_DTYPE" ]] && ARGS+=(--torch_dtype "$TORCH_DTYPE")
 [[ "${EVAL_LIMIT:-0}" != "0" ]] && ARGS+=(--limit "$EVAL_LIMIT")

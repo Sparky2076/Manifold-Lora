@@ -4,6 +4,7 @@ import argparse
 import csv
 import math
 import os
+import sys
 from pathlib import Path
 
 import torch
@@ -177,15 +178,17 @@ def main():
 
     pbar.close()
 
-    adapter_sd = {
+    lora_sd = {
         k: v.detach().cpu()
         for k, v in model.state_dict().items()
         if ("lora_A" in k or "lora_B" in k) and v is not None
     }
-    if adapter_sd:
-        ap = metrics_dir / "lora_adapter.pt"
-        torch.save(adapter_sd, ap)
-        print(f"[done] saved {len(adapter_sd)} tensors -> {ap}")
+    if not lora_sd:
+        print("[main_sft] ERROR: no lora_A/lora_B tensors to save; cannot run later merge/BBH.", file=sys.stderr)
+        raise SystemExit(1)
+    ap = metrics_dir / "sft_lora_state.pt"
+    torch.save(lora_sd, ap)
+    print(f"[done] saved {len(lora_sd)} tensors -> {ap}")
 
     print(f"[done] max_steps={args.max_steps} metrics_dir={metrics_dir}")
 

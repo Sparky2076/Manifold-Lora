@@ -4,8 +4,9 @@
 
 1. **阶段一（LoRA SFT 网格）**：在仓库根目录执行  
    `bash deepseek_autogrid/run_lora_grid_bsub.sh`（显式 `LORA_TYPE=default`）或沿用 `bash scripts/server_submit_deepseek_grid.sh`。跑完后：  
-   `python -m deepseek_autogrid.aggregate_results`（可加 `--allow-incomplete`）。
-2. **阶段二（Top-K × BBH）**：例如 `TOP_K=10 bash scripts/server_submit_deepseek_bbh_topk_from_summary.sh`（读 `deepseek_autogrid/results/summary.csv`，按 `best_eval_perplexity` 取 Top-K，对每个 run 的 `METRICS_DIR` 递交 `lm-eval` BBH）。
+   `python -m deepseek_autogrid.aggregate_results`（可加 `--allow-incomplete`）。每个 run 目录会含 **`sft_lora_state.pt`**（供后续合并），**不会**在训练结束时写 `model_merged_hf/`。
+2. **阶段二（Top-K：合并 → BBH）**：例如  
+   `TOP_K=10 bash scripts/server_submit_deepseek_bbh_topk_from_summary.sh`：默认先对 Top-K 执行 **`scripts/export_merged_deepseek_topk.sh`** 生成 **`model_merged_hf/`**，再以 **`SKIP_MERGE=1`** 递交仅 lm-eval 的 BBH 作业。可设 **`EXPORT_MERGED_FIRST=0`** 若你已在登录节点手动合并完毕。
 3. **汇总 BBH**：`python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results` → `bbh_summary.csv`。若需与阶段一指标并排排名：  
    `python scripts/summarize_deepseek_bbh_results.py --results-root deepseek_autogrid/results --summary-csv deepseek_autogrid/results/summary.csv`。
 
@@ -25,7 +26,7 @@ python -m deepseek_autogrid.analyze_results \
   --summary deepseek_autogrid/results_refine/summary.csv
 ```
 
-对细网格跑 BBH Top-K 时，把 **`ADAPTER_ROOT`** / **`SUMMARY_CSV`** 指到 **`results_refine`** 即可（仍为 DeepSeek，与 DistilBERT 无关）。
+对细网格跑 BBH Top-K 时：将 **`RESULTS_ROOT`** / **`SUMMARY_CSV`** 指到 **`results_refine`**，并同样先 **`export_merged`** 再 **`SKIP_MERGE` BBH**（与粗网格流程一致）。
 
 当前网格默认配置：
 

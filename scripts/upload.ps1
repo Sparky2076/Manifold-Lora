@@ -66,6 +66,7 @@ $uploadOnly = @(
     "$ProjectDir/scripts/server_submit_deepseek_refine_grid.sh",
     "$ProjectDir/scripts/server_submit_deepseek_bbh.sh",
     "$ProjectDir/scripts/server_submit_deepseek_bbh_topk_from_summary.sh",
+    "$ProjectDir/scripts/export_merged_deepseek_topk.sh",
     "$ProjectDir/scripts/pick_topk_deepseek_runs.py",
     "$ProjectDir/scripts/summarize_deepseek_bbh_results.py",
     "$ProjectDir/scripts/server_submit_deepseek_bbh_grid.sh",

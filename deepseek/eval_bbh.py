@@ -1,8 +1,4 @@
-"""Merge LoRA weights from an SFT run and run BBH via lm-eval (EleutherAI harness).
-
-Expects ``run_meta.json`` and ``lora_adapter.pt`` under ``--metrics_dir`` (written by
-``deepseek.main_sft``). Only ``lora_type=default`` (additive LoRA) is supported for merge.
-"""
+"""BBH via lm-eval: either use existing ``model_merged_hf`` or build it from ``sft_lora_state.pt`` + ``run_meta.json``."""
 from __future__ import annotations
 
 import argparse
@@ -11,31 +7,8 @@ import sys
 from pathlib import Path
 
 import torch
-import torch.nn as nn
 
-
-def _merge_loralinear_inplace(model: nn.Module) -> None:
-    from lora import LoRALinear
-
-    for full_name, module in list(model.named_modules()):
-        if not isinstance(module, LoRALinear):
-            continue
-        parts = full_name.split(".")
-        parent = model
-        for p in parts[:-1]:
-            parent = getattr(parent, p)
-        child_name = parts[-1]
-        W = module.base.weight.data.clone()
-        if module.r and module.r > 0:
-            B = module.lora_B.data
-            A = module.lora_A.data
-            W = W + module.scaling * (B @ A)
-        new_lin = nn.Linear(module.in_features, module.out_features, bias=module.base.bias is not None)
-        with torch.no_grad():
-            new_lin.weight.copy_(W)
-            if module.base.bias is not None:
-                new_lin.bias.copy_(module.base.bias.data)
-        setattr(parent, child_name, new_lin)
+from deepseek.merge_lora_export import merge_and_export_hf, merged_hf_ready, resolve_lora_state_path
 
 
 def _bbh_scores_from_lm_eval(results: dict) -> tuple[float, dict[str, float]]:
@@ -66,11 +39,21 @@ def _bbh_scores_from_lm_eval(results: dict) -> tuple[float, dict[str, float]]:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="BBH eval for a DeepSeek LoRA SFT run (lm-eval harness).")
-    p.add_argument("--metrics_dir", type=Path, required=True, help="Run directory with run_meta.json + lora_adapter.pt")
+    p = argparse.ArgumentParser(description="BBH eval (lm-eval): merged HF or merge from SFT run dir.")
+    p.add_argument("--metrics_dir", type=Path, required=True, help="SFT run directory (for output paths + meta)")
+    p.add_argument(
+        "--merged_hf_dir",
+        type=Path,
+        default=None,
+        help="Use this merged HF dir for lm-eval only (default: <metrics_dir>/model_merged_hf if complete).",
+    )
+    p.add_argument(
+        "--force_remerge",
+        action="store_true",
+        help="Rebuild merged HF from sft_lora_state.pt even if model_merged_hf already exists.",
+    )
     p.add_argument("--output_json", type=Path, default=None, help="Default: <metrics_dir>/bbh_eval.json")
-    p.add_argument("--model_name", type=str, default=None, help="Override base HF id (else from run_meta or default)")
-    p.add_argument("--merged_hf_dir", type=Path, default=None, help="Merged HF export dir (default: <metrics_dir>/model_merged_hf)")
+    p.add_argument("--model_name", type=str, default=None, help="Override base HF id when merging")
     p.add_argument("--tasks", type=str, default="bbh", help="Comma-separated lm-eval task names")
     p.add_argument("--num_fewshot", type=int, default=3)
     p.add_argument("--batch_size", type=str, default="auto")
@@ -82,59 +65,39 @@ def main() -> int:
 
     metrics_dir = args.metrics_dir.resolve()
     meta_path = metrics_dir / "run_meta.json"
-    adapter_path = metrics_dir / "lora_adapter.pt"
     if not meta_path.is_file():
         print(f"[eval_bbh] missing {meta_path}", file=sys.stderr)
         return 2
-    if not adapter_path.is_file():
-        print(f"[eval_bbh] missing {adapter_path} (re-run SFT with updated main_sft)", file=sys.stderr)
+
+    merged_dir = (args.merged_hf_dir or (metrics_dir / "model_merged_hf")).resolve()
+    need_merge = args.force_remerge or not merged_hf_ready(merged_dir)
+
+    if need_merge:
+        if resolve_lora_state_path(metrics_dir) is None:
+            print(
+                f"[eval_bbh] missing LoRA snapshot (expected {metrics_dir}/sft_lora_state.pt "
+                "or legacy lora_adapter.pt); cannot merge.",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            merged_dir = merge_and_export_hf(
+                metrics_dir,
+                merged_dir,
+                model_name=args.model_name,
+                trust_remote_code=args.trust_remote_code,
+                torch_dtype=args.torch_dtype,
+            )
+        except (FileNotFoundError, ValueError) as e:
+            print(f"[eval_bbh] merge failed: {e}", file=sys.stderr)
+            return 2
+
+    if not merged_hf_ready(merged_dir):
+        print(f"[eval_bbh] merged HF not ready at {merged_dir}", file=sys.stderr)
         return 2
 
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    if meta.get("lora_type", "default") != "default":
-        print("[eval_bbh] only lora_type=default is supported for merge+BBH in this script.", file=sys.stderr)
-        return 2
-
-    try:
-        import lm_eval
-    except ImportError:
-        print("[eval_bbh] pip install lm-eval lm_eval[hf] (and torch/transformers) on the eval node.", file=sys.stderr)
-        return 2
-
-    from deepseek.models_sft import ModelLoadConfig, load_model_and_tokenizer
-
     model_name = args.model_name or meta.get("model_name") or "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    model, tokenizer = load_model_and_tokenizer(
-        ModelLoadConfig(model_name, trust_remote_code=args.trust_remote_code, torch_dtype=args.torch_dtype)
-    )
-    model.to(device)
-
-    from lora import LoRAConfig, apply_lora, mark_only_lora_as_trainable
-
-    _default_targets = "q_proj,k_proj,v_proj,o_proj,out_proj,q_lin,k_lin,v_lin,out_lin,c_attn,c_proj"
-    _raw_targets = meta.get("lora_targets") or _default_targets
-    targets = [t.strip() for t in str(_raw_targets).split(",") if t.strip()]
-    lora_cfg = LoRAConfig(
-        r=int(meta.get("lora_r", 16)),
-        alpha=float(meta.get("lora_alpha", 32.0)),
-        dropout=float(meta.get("lora_dropout", 0.05)),
-        target_modules=targets,
-        attention_only=True,
-    )
-    apply_lora(device, model, lora_cfg, verbose=False)
-    mark_only_lora_as_trainable(model)
-
-    ad = torch.load(adapter_path, map_location=device)
-    model.load_state_dict(ad, strict=False)
-    model.eval()
-    _merge_loralinear_inplace(model)
-
-    merged_dir = (args.merged_hf_dir or (metrics_dir / "model_merged_hf")).resolve()
-    merged_dir.mkdir(parents=True, exist_ok=True)
-    model.save_pretrained(merged_dir, safe_serialization=True)
-    tokenizer.save_pretrained(merged_dir)
 
     out_json = (args.output_json or (metrics_dir / "bbh_eval.json")).resolve()
     if args.dry_merge_only:
@@ -142,6 +105,12 @@ def main() -> int:
         out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         print(f"[eval_bbh] wrote {out_json}")
         return 0
+
+    try:
+        import lm_eval
+    except ImportError:
+        print("[eval_bbh] pip install lm-eval lm_eval[hf] (and torch/transformers) on the eval node.", file=sys.stderr)
+        return 2
 
     simple_evaluate = getattr(lm_eval, "simple_evaluate", None)
     if simple_evaluate is None:
