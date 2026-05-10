@@ -1,0 +1,12 @@
+{
+  "lr": 0.004,
+  "lora_r": 64,
+  "lora_alpha": 32.0,
+  "epochs": 8,
+  "weight_decay": 0.0,
+  "adam_beta1": 0.9,
+  "adam_beta2": 0.999,
+  "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/distilbert_autogrid/results_mlora_refine/lr_4p0000e-03_r64_a32_ep8_wd_0p0000e00",
+  "command": [],
+  "created_utc": "2026-05-02T15:20:44.777485+00:00"
+}

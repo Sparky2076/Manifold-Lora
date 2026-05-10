@@ -1,0 +1,2 @@
+# 保证 .sh 在仓库和检出时都是 LF，避免在 Linux 上出现 bash\r 错误
+*.sh text eol=lf

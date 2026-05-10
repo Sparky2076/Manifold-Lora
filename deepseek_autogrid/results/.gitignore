@@ -1,0 +1,7 @@
+*
+!.gitignore
+!summary.csv
+!missing_runs.csv
+!deepseek_grid_analysis.md
+!deepseek_grid_snapshot.md
+
