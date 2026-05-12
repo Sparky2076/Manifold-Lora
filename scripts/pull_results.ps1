@@ -1,14 +1,14 @@
 # 从服务器拉回 DistilBERT 网格汇总结果到本地（Windows PowerShell）
 # 用法:
 #   .\scripts\pull_results.ps1
-#   $env:SERVER="wangxiao@202.121.138.221"; .\scripts\pull_results.ps1
+#   $env:SERVER="wangxiao@202.121.138.196"; .\scripts\pull_results.ps1
 #   $env:REMOTE_DIR="Manifold-Lora"; .\scripts\pull_results.ps1
 # mLoRA:
 #   $env:RESULTS_REL="distilbert_autogrid/results_mlora"; .\scripts\pull_results.ps1
 
 $ErrorActionPreference = "Stop"
 
-$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.221" }
+$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.196" }
 $RemoteDir = if ($env:REMOTE_DIR) { $env:REMOTE_DIR } else { "Manifold-Lora" }
 $ResultsRel = if ($env:RESULTS_REL) { $env:RESULTS_REL } else { "distilbert_autogrid/results" }
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path

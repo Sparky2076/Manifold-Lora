@@ -4,14 +4,14 @@
 #
 # 用法:
 #   bash scripts/pull_distilbert_best_20ep.sh
-#   SERVER=wangxiao@主机 REMOTE_DIR=Manifold-Lora bash scripts/pull_distilbert_best_20ep.sh
+#   SERVER=wangxiao@202.121.138.196 REMOTE_DIR=Manifold-Lora bash scripts/pull_distilbert_best_20ep.sh
 # 只拉 LoRA 或只拉 mLoRA:
 #   PULL_WHICH=lora bash scripts/pull_distilbert_best_20ep.sh
 #   PULL_WHICH=mlora bash scripts/pull_distilbert_best_20ep.sh
 
 set -euo pipefail
 
-SERVER="${SERVER:-wangxiao@202.121.138.221}"
+SERVER="${SERVER:-wangxiao@202.121.138.196}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 PULL_WHICH="${PULL_WHICH:-both}"
 

@@ -2,13 +2,13 @@
 # 从服务器拉回 DistilBERT 网格汇总结果到本地（bash）
 # 用法:
 #   bash scripts/pull_results.sh
-#   SERVER=wangxiao@202.121.138.221 REMOTE_DIR=Manifold-Lora bash scripts/pull_results.sh
+#   SERVER=wangxiao@202.121.138.196 REMOTE_DIR=Manifold-Lora bash scripts/pull_results.sh
 # mLoRA 汇总在 results_mlora/ 时：
 #   RESULTS_REL=distilbert_autogrid/results_mlora bash scripts/pull_results.sh
 
 set -euo pipefail
 
-SERVER="${SERVER:-wangxiao@202.121.138.221}"
+SERVER="${SERVER:-wangxiao@202.121.138.196}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 # 相对仓库根：默认 LoRA 的 results/；mLoRA 用 distilbert_autogrid/results_mlora
 RESULTS_REL="${RESULTS_REL:-distilbert_autogrid/results}"

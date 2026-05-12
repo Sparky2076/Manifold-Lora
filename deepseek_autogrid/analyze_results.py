@@ -49,6 +49,10 @@ def main() -> int:
     ppl = [x for x in ppl if x is not None]
     top = sorted(ok_rows, key=lambda r: _f(r["best_eval_perplexity"]) or 1e18)[:15]
 
+    def _pk(r, key: str) -> str:
+        v = (r.get(key) or "").strip()
+        return v if v else "-"
+
     def _group(col):
         g = defaultdict(list)
         for r in ok_rows:
@@ -80,13 +84,41 @@ def main() -> int:
         "",
         "## Top 组合（按 perplexity 越低越好）",
         "",
-        "| rank | best_eval_perplexity | lr | r | alpha | weight_decay |",
-        "|------|----------------------|----|---|-------|--------------|",
+        "| rank | best_ppl | last/best | tail_mean/best | lr | r | alpha | wd |",
+        "|------|----------|-----------|----------------|----|---|-------|-----|",
     ]
     for i, r in enumerate(top, 1):
         lines.append(
-            f"| {i} | {_f(r['best_eval_perplexity']):.4f} | {r.get('lr','')} | {r.get('lora_r','')} | {r.get('lora_alpha','')} | {r.get('weight_decay','')} |"
+            f"| {i} | {_f(r['best_eval_perplexity']):.4f} | {_pk(r, 'post_peak_last_over_best')} | {_pk(r, 'post_peak_tail_mean_over_best')} | "
+            f"{r.get('lr','')} | {r.get('lora_r','')} | {r.get('lora_alpha','')} | {r.get('weight_decay','')} |"
         )
+
+    drift_rows = []
+    for r in ok_rows:
+        t = _f(r.get("post_peak_tail_mean_over_best"))
+        if t is not None:
+            drift_rows.append((t, r))
+    drift_rows.sort(key=lambda x: -x[0])
+    lines += [
+        "",
+        "## Post-peak（最优之后又发散了吗？）",
+        "",
+        "- **post_peak_last_over_best**：最后一次 eval 的 ppl / 全程最优；**接近 1 好**，明显 **>1** 表示终点比最低点差。",
+        "- **post_peak_tail_mean_over_best**：达到最优 perplexity 的那次 eval **之后**，所有 eval 点的平均 ppl / 最优 ppl；**接近 1** 表示最优后整体未漂，**明显 >1** 表示最优后持续变差。",
+        "",
+        "### 尾部发散最明显（tail_mean/best 降序，最多 12 行）",
+        "",
+        "| tail/best | last/best | best_ppl | lr | r | alpha | wd |",
+        "|-------------|-----------|----------|----|---|-------|-----|",
+    ]
+    if drift_rows:
+        for t, r in drift_rows[:12]:
+            lines.append(
+                f"| {t:.4f} | {_pk(r, 'post_peak_last_over_best')} | {_f(r['best_eval_perplexity']):.4f} | "
+                f"{r.get('lr','')} | {r.get('lora_r','')} | {r.get('lora_alpha','')} | {r.get('weight_decay','')} |"
+            )
+    else:
+        lines.append("| （无 post_peak 列：请重新运行 `aggregate_results` 生成 summary） | | | | | | |")
 
     lines += ["", "## 分组统计（mean / min）", "", "| group | key | n | min | mean |", "|------|-----|---|-----|------|"]
     for gname, col in [("lr", "lr"), ("weight_decay", "weight_decay"), ("lora_r", "lora_r"), ("lora_alpha", "lora_alpha")]:

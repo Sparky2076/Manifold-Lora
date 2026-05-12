@@ -2,7 +2,7 @@
 # 拉回 mLoRA 第二轮结果。汇总请在服务器先执行一行：
 #   cd ~/Manifold-Lora && python -m distilbert_autogrid.aggregate_results --results-root distilbert_autogrid/results_mlora_refine --allow-incomplete
 set -euo pipefail
-SERVER="${SERVER:-wangxiao@202.121.138.221}"
+SERVER="${SERVER:-wangxiao@202.121.138.196}"
 REMOTE_DIR="${REMOTE_DIR:-Manifold-Lora}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DST="$ROOT/distilbert_autogrid/results_mlora_refine"

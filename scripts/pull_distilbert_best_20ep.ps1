@@ -5,7 +5,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.221" }
+$Server = if ($env:SERVER) { $env:SERVER } else { "wangxiao@202.121.138.196" }
 $RemoteDir = if ($env:REMOTE_DIR) { $env:REMOTE_DIR } else { "Manifold-Lora" }
 $Which = if ($env:PULL_WHICH) { $env:PULL_WHICH } else { "both" }
 

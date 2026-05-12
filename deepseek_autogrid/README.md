@@ -28,6 +28,17 @@ python -m deepseek_autogrid.analyze_results \
 
 对细网格跑 BBH Top-K 时：将 **`RESULTS_ROOT`** / **`SUMMARY_CSV`** 指到 **`results_refine`**，并同样先 **`export_merged`** 再 **`SKIP_MERGE` BBH**（与粗网格流程一致）。
 
+### 第二轮（可选）：按 `summary.csv` 相关性自动生成密网格
+
+对已完成粗网格的 `summary.csv` 运行：
+
+```bash
+python -m deepseek_autogrid.suggest_refine_from_summary
+# 或指定路径：python -m deepseek_autogrid.suggest_refine_from_summary --summary path/to/summary.csv
+```
+
+脚本用 **Spearman（|r|）** 与 **单因素 eta^2**（默认阈值与 `--spearman-strong` / `--eta2-strong` 可调）判断各超参相对 **`best_eval_perplexity`** 是否「强相关」：**强相关维在 Top 区做 log 加密**；**弱相关维**按边际均值取 **top-k**（`--weak-r-levels` / `--weak-alpha-levels`）。`weight_decay` 弱相关时默认 **只保留边际最优一档**（`--weak-wd-both` 可改回两档全扫）。总 job 约 **`--max-jobs`（默认 50）**：先定 r/α/wd，再令 **lr 点数 = min(`--lr-dense-points`, floor(max_jobs/(r×α×wd)))** 以 **优先加密 lr**；仍超限时再收缩。会生成 **`deepseek_autogrid/results/correlation_refine_suggestion.md`** 与 **`deepseek_autogrid/config_correlation_refine.py`**。若四因子均未达强相关阈值，脚本以退出码 **2** 结束。
+
 当前网格默认配置：
 
 - 数据：`alpaca_train_1k`

@@ -20,10 +20,10 @@ def read_meta(run_dir: Path) -> dict | None:
         return None
 
 
-def best_from_test(path: Path):
+def parse_test_rows(path: Path) -> list[tuple[int, float, float]]:
+    rows: list[tuple[int, float, float]] = []
     if not path.is_file():
-        return None, None, None
-    rows = []
+        return rows
     with path.open(newline="", encoding="utf-8") as f:
         r = csv.DictReader(f)
         for row in r:
@@ -34,6 +34,28 @@ def best_from_test(path: Path):
             except (KeyError, ValueError):
                 continue
             rows.append((it, loss, ppl))
+    return rows
+
+
+def collapse_metrics(rows: list[tuple[int, float, float]]) -> tuple[float | None, float | None]:
+    """Post-best perplexity vs best: (last/best, mean_tail/best). ~1 stable, >>1 diverged after best."""
+    if not rows:
+        return None, None
+    best_idx = min(range(len(rows)), key=lambda i: rows[i][2])
+    best_ppl = rows[best_idx][2]
+    if best_ppl <= 0:
+        return None, None
+    last_ratio = rows[-1][2] / best_ppl
+    tail = rows[best_idx + 1 :]
+    if not tail:
+        return last_ratio, 1.0
+    tail_mean = sum(p for _, _, p in tail) / len(tail)
+    tail_mean_ratio = tail_mean / best_ppl
+    return last_ratio, tail_mean_ratio
+
+
+def best_from_test(path: Path):
+    rows = parse_test_rows(path)
     if not rows:
         return None, None, None
     best = min(rows, key=lambda x: x[2])
@@ -81,6 +103,8 @@ def aggregate() -> int:
         "last_eval_perplexity",
         "last_eval_loss",
         "last_iteration",
+        "post_peak_last_over_best",
+        "post_peak_tail_mean_over_best",
         "metrics_dir",
         "status",
     ]
@@ -92,19 +116,14 @@ def aggregate() -> int:
             continue
         test_csv = run_dir / "test_sft.csv"
         meta = read_meta(run_dir)
-        best_ppl, best_loss, best_it = best_from_test(test_csv)
-
+        parsed = parse_test_rows(test_csv)
+        best_ppl = best_loss = best_it = None
         last_it = last_loss = last_ppl = None
-        if test_csv.is_file():
-            with test_csv.open(newline="", encoding="utf-8") as f:
-                r = csv.DictReader(f)
-                for row in r:
-                    try:
-                        last_it = int(row["iteration"])
-                        last_loss = float(row["eval_loss"])
-                        last_ppl = float(row["eval_perplexity"])
-                    except (KeyError, ValueError):
-                        continue
+        collapse_last = collapse_tail = None
+        if parsed:
+            best_it, best_loss, best_ppl = min(parsed, key=lambda x: x[2])
+            last_it, last_loss, last_ppl = parsed[-1]
+            collapse_last, collapse_tail = collapse_metrics(parsed)
 
         if test_csv.is_file() and best_ppl is not None:
             status = "ok"
@@ -132,6 +151,8 @@ def aggregate() -> int:
                 "last_eval_perplexity": last_ppl if last_ppl is not None else "",
                 "last_eval_loss": last_loss if last_loss is not None else "",
                 "last_iteration": last_it if last_it is not None else "",
+                "post_peak_last_over_best": collapse_last if collapse_last is not None else "",
+                "post_peak_tail_mean_over_best": collapse_tail if collapse_tail is not None else "",
                 "metrics_dir": run_dir.resolve().relative_to(PROJECT_ROOT).as_posix(),
                 "status": status,
             }
