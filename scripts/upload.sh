@@ -123,6 +123,8 @@ if command -v rsync >/dev/null 2>&1; then
         "$PROJECT_DIR/scripts/grid_submitter_status.sh" \
         "$PROJECT_DIR/scripts/pull_deepseek_results.sh" \
         "$PROJECT_DIR/scripts/pull_deepseek_results.ps1" \
+        "$PROJECT_DIR/scripts/pull_deepseek_correlation_refine_bbh.sh" \
+        "$PROJECT_DIR/scripts/pull_deepseek_correlation_refine_bbh.ps1" \
         "$PROJECT_DIR/scripts/refresh_results_and_publish.sh" \
         "$PROJECT_DIR/scripts/refresh_results_and_publish.ps1" \
         "$PROJECT_DIR/scripts/refresh_deepseek_results_and_publish.sh" \

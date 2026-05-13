@@ -62,6 +62,36 @@ Use the **results_correlation_refine** path as the local destination (not `deeps
 
 `scp user@HOST:/nfsshare/home/wangxiao/Manifold-Lora/deepseek_autogrid/results_correlation_refine/summary.csv deepseek_autogrid/results_correlation_refine/`
 
+## Pull BBH outputs (`bbh_eval.json`) and build leaderboard (local)
+
+Each finished run should contain **`bbh_eval.json`** under its run directory. The summarizer scans **all** subdirectories under `results_correlation_refine/` that have this file.
+
+**Option 1 — helper script (stable Top-5 from list B):**
+
+```powershell
+# Windows (repo root)
+.\scripts\pull_deepseek_correlation_refine_bbh.ps1
+```
+
+```bash
+# Linux / macOS / Git Bash
+bash scripts/pull_deepseek_correlation_refine_bbh.sh
+```
+
+**Option 2 — manual `scp`** (one run):
+
+`scp user@HOST:/nfsshare/home/wangxiao/Manifold-Lora/deepseek_autogrid/results_correlation_refine/lr_2p0000e-04_r64_a32_st500_wd_1p0000e-02/bbh_eval.json deepseek_autogrid/results_correlation_refine/lr_2p0000e-04_r64_a32_st500_wd_1p0000e-02/`
+
+Then regenerate **`bbh_leaderboard.csv`** / **`bbh_leaderboard.md`** (requires `bbh_mean_acc` inside each JSON):
+
+```bash
+python scripts/summarize_deepseek_bbh_results.py \
+  --results-root deepseek_autogrid/results_correlation_refine \
+  --summary-csv deepseek_autogrid/results_correlation_refine/summary.csv
+```
+
+Commit the leaderboard (and optionally the five `bbh_eval.json` files) when satisfied.
+
 ## Regenerate checked-in summaries
 
 From repo root (with full run dirs present):
