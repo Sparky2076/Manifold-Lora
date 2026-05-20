@@ -6,6 +6,7 @@ MODEL_NAME="${1:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
 METRICS_DIR="${2:-.}"
 
 SFT_PRESET="${SFT_PRESET:-alpaca_train_1k}"
+SFT_FORMAT="${SFT_FORMAT:-chat}"
 SFT_VAL_RATIO="${SFT_VAL_RATIO:-0.2}"
 MAX_STEPS="${MAX_STEPS:-1500}"
 EVAL_EVERY="${EVAL_EVERY:-100}"
@@ -71,6 +72,8 @@ if not p.exists():
         "max_steps": int(float(os.environ.get("MAX_STEPS", "1500"))),
         "eval_every": int(float(os.environ.get("EVAL_EVERY", "100"))),
         "sft_preset": os.environ.get("SFT_PRESET", "alpaca_train_1k"),
+        "sft_format": os.environ.get("SFT_FORMAT", "chat"),
+        "prompt_loss_masked": True,
         "sft_val_ratio": float(os.environ.get("SFT_VAL_RATIO", "0.2")),
         "lora_type": os.environ.get("LORA_TYPE", "default"),
         "model_name": os.environ.get("MODEL_NAME", "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"),
@@ -83,7 +86,7 @@ fi
 
 python -m deepseek.main_sft \
   --model_name "$MODEL_NAME" \
-  --sft_preset "$SFT_PRESET" --sft_val_ratio "$SFT_VAL_RATIO" \
+  --sft_preset "$SFT_PRESET" --sft_format "$SFT_FORMAT" --sft_val_ratio "$SFT_VAL_RATIO" \
   --max_steps "$MAX_STEPS" --eval_every "$EVAL_EVERY" \
   --batch_size "$BATCH_SIZE" --grad_accum_steps "$GRAD_ACCUM_STEPS" --max_length "$MAX_LENGTH" \
   --lr "$LR" --weight_decay "$WEIGHT_DECAY" --adam_beta1 "$ADAM_BETA1" --adam_beta2 "$ADAM_BETA2" \

@@ -1,6 +1,33 @@
-﻿# DeepSeek SFT + 全因子网格（LoRA / mLoRA）
+# DeepSeek SFT + 全因子网格（LoRA / mLoRA）
 
-本目录用于 DeepSeek 系列模型的 SFT 训练。当前实现默认使用历史方案中的 `alpaca_train_1k` + `SFT_VAL_RATIO=0.2`，并与 `deepseek_autogrid/` 配套完成自动补齐网格。
+本目录用于 DeepSeek 系列模型的 SFT 训练。默认 **`--sft_format chat`**（`apply_chat_template` + **仅 assistant 参与 loss**），数据 preset 常用 **`alpaca_train_1k`** + **`SFT_VAL_RATIO=0.2`**，并与 `deepseek_autogrid/` 配套完成自动补齐网格。
+
+## Alpaca SFT 约定（文献与实践对齐）
+
+| 来源 | 对本仓库的启示 |
+|------|----------------|
+| [LoRA (2106.09685)](https://arxiv.org/abs/2106.09685) | LoRA 缩放；实践上常用 **`alpha ≈ 2r`** |
+| [DeepSeek-R1 (2501.12948)](https://arxiv.org/abs/2501.12948) | Alpaca 属 **非长链推理 SFT**；Distill 系列应用 **官方 chat 格式**，训练/推理 template 一致 |
+| [Qwen3 TR (2505.09388)](https://arxiv.org/abs/2505.09388) | Alpaca 属 **non-thinking** SFT，只学直接回答 |
+
+**默认行为**：`--sft_format chat` 对 prompt 设 `labels=-100`；`--sft_format alpaca` 为 legacy 字符串但同样 mask prompt。空 `output` 会过滤。新 preset **`alpaca_train_full`** → 全量 Alpaca。
+
+**与旧 checkpoint**：旧 run 若 instruction 也参与 loss，**不可与新 pipeline 横向对比**；需重训 SFT 后再比 BBH。网格默认 **`SFT_FORMAT=chat`**。
+
+### Masking 单元测试
+
+```bash
+python -m unittest deepseek.tests.test_sft_masking -v
+```
+
+### 单机冒烟
+
+```bash
+python -m deepseek.main_sft \
+  --sft_preset testing_alpaca_small --max_steps 5 \
+  --sft_format chat --trust_remote_code \
+  --metrics_dir /tmp/sft_smoke_chat
+```
 
 ## 单次训练（本机）
 
@@ -8,9 +35,12 @@
 python -m deepseek.main_sft \
   --model_name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B \
   --sft_preset alpaca_train_1k --sft_val_ratio 0.2 \
+  --sft_format chat --trust_remote_code \
   --max_steps 500 --eval_every 100 \
   --lora_type default --metrics_dir deepseek/results/smoke
 ```
+
+Legacy 对照：追加 **`--sft_format alpaca`**（仍为 prompt-mask，仅字符串格式不同）。
 
 输出文件：
 

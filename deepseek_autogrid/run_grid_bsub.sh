@@ -41,6 +41,7 @@ export MAX_STEPS="${MAX_STEPS:-$(python -c "import importlib,os;m=importlib.impo
 export EVAL_EVERY="${EVAL_EVERY:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.EVAL_EVERY_DEFAULT)")}"
 export SFT_PRESET="${SFT_PRESET:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.SFT_PRESET_DEFAULT)")}"
 export SFT_VAL_RATIO="${SFT_VAL_RATIO:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.SFT_VAL_RATIO_DEFAULT)")}"
+export SFT_FORMAT="${SFT_FORMAT:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(getattr(m,'SFT_FORMAT_DEFAULT','chat'))")}"
 export ADAM_BETA1="${ADAM_BETA1:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.ADAM_BETA1_FIXED)")}"
 export ADAM_BETA2="${ADAM_BETA2:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.ADAM_BETA2_FIXED)")}"
 

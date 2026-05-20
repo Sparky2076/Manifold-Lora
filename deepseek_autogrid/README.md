@@ -42,6 +42,7 @@ python -m deepseek_autogrid.suggest_refine_from_summary
 当前网格默认配置：
 
 - 数据：`alpaca_train_1k`
+- SFT 格式：**`SFT_FORMAT=chat`**（各 `config*.py` 中 **`SFT_FORMAT_DEFAULT`**；可用环境变量覆盖）
 - 验证比例：`SFT_VAL_RATIO=0.2`
 - 步数：`MAX_STEPS=500`（默认，约为原 1500 的 1/3，缩短单 job），`EVAL_EVERY=100`
 - 参数网格（粗略）：`lr(5) × r(3) × alpha(3) × wd(2) = 90` 组（每种 LoRA 类型）

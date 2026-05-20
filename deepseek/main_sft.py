@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import math
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
@@ -57,6 +59,13 @@ def main():
     p.add_argument("--sft_dataset", type=str, default="")
     p.add_argument("--sft_split", type=str, default="")
     p.add_argument("--sft_val_ratio", type=float, default=0.2)
+    p.add_argument(
+        "--sft_format",
+        type=str,
+        default="chat",
+        choices=["chat", "alpaca"],
+        help="chat: apply_chat_template + mask prompt (default). alpaca: legacy string + mask prompt prefix.",
+    )
 
     p.add_argument("--batch_size", type=int, default=2)
     p.add_argument("--grad_accum_steps", type=int, default=8)
@@ -100,7 +109,11 @@ def main():
     ds = load_sft_dataset(args.sft_dataset, args.sft_split, args.sft_preset)
     train_ds, val_ds = split_train_val(ds, args.sft_val_ratio, args.seed)
     train_loader, val_loader = build_dataloaders(
-        tokenizer, train_ds, val_ds, SFTDataConfig(args.max_length, args.batch_size, args.num_workers)
+        tokenizer,
+        train_ds,
+        val_ds,
+        SFTDataConfig(args.max_length, args.batch_size, args.num_workers),
+        sft_format=args.sft_format,
     )
 
     if args.lora_type == "default":
@@ -189,6 +202,38 @@ def main():
     ap = metrics_dir / "sft_lora_state.pt"
     torch.save(lora_sd, ap)
     print(f"[done] saved {len(lora_sd)} tensors -> {ap}")
+
+    meta_path = metrics_dir / "run_meta.json"
+    prev: dict = {}
+    if meta_path.is_file():
+        try:
+            prev = json.loads(meta_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            prev = {}
+    now = datetime.now(timezone.utc).isoformat()
+    meta = {
+        "model_name": args.model_name,
+        "lr": args.lr,
+        "weight_decay": args.weight_decay,
+        "max_steps": args.max_steps,
+        "eval_every": args.eval_every,
+        "sft_preset": args.sft_preset,
+        "sft_val_ratio": args.sft_val_ratio,
+        "sft_format": args.sft_format,
+        "prompt_loss_masked": True,
+        "lora_type": args.lora_type,
+        "lora_r": args.lora_r,
+        "lora_alpha": args.lora_alpha,
+        "lora_dropout": args.lora_dropout,
+        "lora_targets": args.lora_targets,
+        "lora_attention_only": args.lora_attention_only,
+        "metrics_dir": str(metrics_dir.resolve()),
+        "updated_utc": now,
+    }
+    merged = {**prev, **meta}
+    merged.setdefault("created_utc", prev.get("created_utc") or now)
+    meta_path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
+    print(f"[done] wrote {meta_path}")
 
     print(f"[done] max_steps={args.max_steps} metrics_dir={metrics_dir}")
 
