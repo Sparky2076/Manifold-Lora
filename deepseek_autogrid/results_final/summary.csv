@@ -1,0 +1,4 @@
+lr,lora_r,lora_alpha,weight_decay,max_steps,eval_every,sft_preset,sft_val_ratio,lora_type,best_eval_perplexity,best_eval_loss,best_iteration,last_eval_perplexity,last_eval_loss,last_iteration,metrics_dir,status
+0.0016222617,32,32.0,0.01,2600,100,alpaca_train_full,0.2,default,3.700816,1.308553,2600,3.700816,1.308553,2600,deepseek_autogrid/results_final/lr_1p6223e-03_r32_a32_st2600_wd_1p0000e-02,ok
+0.002,64,32.0,0.01,2600,100,alpaca_train_full,0.2,default,3.702208,1.308929,2600,3.702208,1.308929,2600,deepseek_autogrid/results_final/lr_2p0000e-03_r64_a32_st2600_wd_1p0000e-02,ok
+0.0010673398,32,16.0,0.01,2600,100,alpaca_train_full,0.2,default,3.717691,1.313103,2600,3.717691,1.313103,2600,deepseek_autogrid/results_final/lr_1p0673e-03_r32_a16_st2600_wd_1p0000e-02,ok

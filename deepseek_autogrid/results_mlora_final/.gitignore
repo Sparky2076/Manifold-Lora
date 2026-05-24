@@ -1,0 +1,7 @@
+# Ignore weights; track convergence curves + manifest for plotting.
+*
+!.gitignore
+!summary.csv
+!lr_*/
+!lr_*/*.csv
+!lr_*/*.json
