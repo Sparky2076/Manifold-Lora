@@ -74,6 +74,11 @@ def aggregate() -> int:
     )
     p.add_argument("--output", type=Path, default=None)
     p.add_argument("--allow-incomplete", action="store_true")
+    p.add_argument(
+        "--discover-run-dirs",
+        action="store_true",
+        help="Scan results-root for subdirs named lr_* (Top-K / results_*_final grids where grid_size()==0).",
+    )
     args = p.parse_args()
 
     cfg = load_grid_config(args.config_module)
@@ -110,6 +115,8 @@ def aggregate() -> int:
     ]
 
     allowed_names = {run_dir_name(lr, r, a, max_steps, wd) for lr, r, a, wd in iter_grid()}
+    if args.discover_run_dirs:
+        allowed_names = {p.name for p in root.iterdir() if p.is_dir() and p.name.startswith("lr_")}
     rows = []
     for run_dir in sorted(p for p in root.iterdir() if p.is_dir()):
         if run_dir.name not in allowed_names:

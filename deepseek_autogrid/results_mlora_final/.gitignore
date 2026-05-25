@@ -2,6 +2,7 @@
 *
 !.gitignore
 !summary.csv
+!deepseek_grid_analysis.md
 !lr_*/
 !lr_*/*.csv
 !lr_*/*.json
