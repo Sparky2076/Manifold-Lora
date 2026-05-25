@@ -6,7 +6,41 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
+# Login-node nohup may not inherit conda; prefer torch env python for config imports.
+for _conda_root in "${CONDA_ROOT:-}" "$HOME/miniconda3" "/nfsshare/home/${USER:-$LOGNAME}/miniconda3"; do
+  [[ -n "$_conda_root" && -x "$_conda_root/envs/${CONDA_ENV_NAME:-torch}/bin/python" ]] || continue
+  export PATH="$_conda_root/envs/${CONDA_ENV_NAME:-torch}/bin:${PATH}"
+  export CONDA_ROOT="$_conda_root"
+  break
+done
+
+# HF_HOME / HF_DATASETS_CACHE defaults for NFS + bsub job env (scripts/cluster_hf_cache_env.sh)
+if ! command -v bsub >/dev/null 2>&1 && [[ -f "$PROJECT_DIR/scripts/_cluster_lsf_env.sh" ]]; then
+  # shellcheck source=scripts/_cluster_lsf_env.sh
+  source "$PROJECT_DIR/scripts/_cluster_lsf_env.sh"
+fi
+
+if [[ -f "$PROJECT_DIR/scripts/cluster_hf_cache_env.sh" ]]; then
+  # shellcheck source=scripts/cluster_hf_cache_env.sh
+  source "$PROJECT_DIR/scripts/cluster_hf_cache_env.sh"
+fi
+
 export DEEPSEEK_GRID_CONFIG_MODULE="${DEEPSEEK_GRID_CONFIG_MODULE:-deepseek_autogrid.config}"
+export GRID_JOB_PREFIX="${GRID_JOB_PREFIX:-deepseek_grid}"
+
+# Model / LoRA / trust_remote_code defaults from grid config (wrappers may pre-export env).
+_GRID_PY='import importlib, os; m = importlib.import_module(os.environ["DEEPSEEK_GRID_CONFIG_MODULE"])'
+export MODEL_NAME="${MODEL_NAME:-$(python -c "${_GRID_PY}; print(getattr(m, \"MODEL_NAME_DEFAULT\", \"deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B\"))")}"
+
+_lora_tgt_default="$(python -c "${_GRID_PY}; print(getattr(m, \"LORA_TARGETS_DEFAULT\", \"\") or \"\")")"
+if [[ -n "${_lora_tgt_default}" && -z "${LORA_TARGETS:-}" ]]; then
+  export LORA_TARGETS="${_lora_tgt_default}"
+fi
+
+_tr_default="$(python -c "${_GRID_PY}; print(1 if bool(getattr(m, \"TRUST_REMOTE_CODE_DEFAULT\", False)) else 0)")"
+if [[ -z "${TRUST_REMOTE_CODE:-}" && "${_tr_default}" == "1" ]]; then
+  export TRUST_REMOTE_CODE=1
+fi
 
 LORA_TYPE="${LORA_TYPE:-default}"
 if [[ -z "${RESULTS_ROOT:-}" ]]; then
@@ -66,7 +100,16 @@ _grid_pending_jobs() {
   command -v bjobs >/dev/null 2>&1 || { echo 0; return 0; }
   local u="${USER:-${LOGNAME:-}}"
   [[ -z "$u" ]] && { echo 0; return 0; }
-  bjobs -u "$u" 2>/dev/null | awk 'NR>1 && $3 ~ /^(RUN|PEND)$/ && $7 ~ /^deepseek_grid_/ {c++} END{print c+0}'
+  local pfx="${GRID_JOB_PREFIX:-deepseek_grid}"
+  bjobs -u "$u" 2>/dev/null | awk -v pfx="$pfx" 'NR>1 && $3 ~ /^(RUN|PEND)$/ && $7 ~ ("^" pfx "_") {c++} END{print c+0}'
+}
+
+_grid_job_in_queue() {
+  local jname="$1"
+  command -v bjobs >/dev/null 2>&1 || return 1
+  local u="${USER:-${LOGNAME:-}}"
+  [[ -z "$u" || -z "$jname" ]] && return 1
+  bjobs -u "$u" -J "$jname" 2>/dev/null | awk 'NR>1 && $3 ~ /^(RUN|PEND)$/' | grep -q .
 }
 
 _grid_wait_all_done() {
@@ -75,17 +118,26 @@ _grid_wait_all_done() {
     local n
     n="$(_grid_pending_jobs)"
     [[ "$n" -le 0 ]] && return 0
-    echo "[deepseek-grid] waiting RUN/PEND deepseek_grid_*: $n (sleep ${GRID_POLL_SEC}s) ..." >&2
+    echo "[deepseek-grid] waiting RUN/PEND ${GRID_JOB_PREFIX}_*: $n (sleep ${GRID_POLL_SEC}s) ..." >&2
     sleep "$GRID_POLL_SEC"
   done
 }
 
 _grid_is_complete() {
   local md="$1"
+  [[ -f "$md/sft_lora_state.pt" ]] || return 1
   [[ -f "$md/test_sft.csv" ]] || return 1
-  local lines
+  local max_steps="${MAX_STEPS:-500}"
+  local eval_every="${EVAL_EVERY:-100}"
+  local expected=$((max_steps / eval_every))
+  [[ "$expected" -ge 1 ]] || expected=1
+  local lines eval_rows last_it
   lines=$(wc -l < "$md/test_sft.csv" | tr -d ' \t')
-  [[ $((lines - 1)) -ge 1 ]]
+  eval_rows=$((lines - 1))
+  [[ "$eval_rows" -ge "$expected" ]] || return 1
+  last_it=$(awk -F, 'NR>1 {it=$1+0; if(it>max) max=it} END{print max+0}' "$md/test_sft.csv")
+  [[ "$last_it" -ge "$max_steps" ]] || return 1
+  return 0
 }
 
 pass=0
@@ -102,7 +154,10 @@ while true; do
     fi
     need_n=$((need_n + 1))
 
-    export JOB_NAME="deepseek_grid_${NAME}"
+    export JOB_NAME="${GRID_JOB_PREFIX}_${NAME}"
+    if [[ "$GRID_RESUME" != "0" ]] && _grid_job_in_queue "$JOB_NAME"; then
+      continue
+    fi
     export LR="$LR" LORA_R="$R" LORA_ALPHA="$A"
     export WEIGHT_DECAY="$WD"
     export METRICS_DIR
