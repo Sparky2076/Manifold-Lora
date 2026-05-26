@@ -71,8 +71,18 @@ GRID_POLL_SEC="${GRID_POLL_SEC:-30}"
 SUBMIT_SLEEP_SEC="${SUBMIT_SLEEP_SEC:-180}"
 GRID_MAX_PASSES="${GRID_MAX_PASSES:-0}"
 
-export MAX_STEPS="${MAX_STEPS:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.MAX_STEPS_DEFAULT)")}"
-export EVAL_EVERY="${EVAL_EVERY:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.EVAL_EVERY_DEFAULT)")}"
+# Grid training length always from config module (smoke pipelines may leave MAX_STEPS=2 in env).
+if [[ -n "${GRID_MAX_STEPS:-}" ]]; then
+  export MAX_STEPS="$GRID_MAX_STEPS"
+else
+  export MAX_STEPS="$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.MAX_STEPS_DEFAULT)")"
+fi
+if [[ -n "${GRID_EVAL_EVERY:-}" ]]; then
+  export EVAL_EVERY="$GRID_EVAL_EVERY"
+else
+  export EVAL_EVERY="$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.EVAL_EVERY_DEFAULT)")"
+fi
+echo "[deepseek-grid] MAX_STEPS=${MAX_STEPS} EVAL_EVERY=${EVAL_EVERY} RESULTS_ROOT=${RESULTS_ROOT:-<default>}" >&2
 export SFT_PRESET="${SFT_PRESET:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.SFT_PRESET_DEFAULT)")}"
 export SFT_VAL_RATIO="${SFT_VAL_RATIO:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(m.SFT_VAL_RATIO_DEFAULT)")}"
 export SFT_FORMAT="${SFT_FORMAT:-$(python -c "import importlib,os;m=importlib.import_module(os.environ['DEEPSEEK_GRID_CONFIG_MODULE']);print(getattr(m,'SFT_FORMAT_DEFAULT','chat'))")}"

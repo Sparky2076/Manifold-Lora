@@ -94,6 +94,7 @@ fi
 
 sed -i 's/\r$//' scripts/*.sh qwen3_autogrid/*.sh deepseek/scripts/*.sh deepseek_autogrid/*.sh 2>/dev/null || true
 LOG="${QWEN3_REFINE_GRID_LOG:-$PROJECT_DIR/qwen3_mmlu_refine_grid_submit.log}"
-echo "===== Phase D-refine: nohup refine grid (48) → $LOG ====="
+echo "===== Phase D-refine: nohup refine grid (48, MAX_STEPS=500) → $LOG ====="
+unset MAX_STEPS EVAL_EVERY BATCH_SIZE GRAD_ACCUM_STEPS MAX_LENGTH
 nohup bash "$PROJECT_DIR/scripts/server_submit_qwen3_refine_grid.sh" >>"$LOG" 2>&1 &
 echo "[qwen3-refine-pipeline] nohup pid=${!} log=$LOG"

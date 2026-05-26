@@ -52,4 +52,5 @@ else
   export MODEL_NAME="${MODEL_NAME:-Qwen/Qwen3-0.6B}"
 fi
 echo "==> MODEL_NAME=$MODEL_NAME EXCLUDE_HOSTS=$EXCLUDE_HOSTS"
+unset MAX_STEPS EVAL_EVERY BATCH_SIZE GRAD_ACCUM_STEPS MAX_LENGTH
 exec bash "$PROJECT_DIR/qwen3_autogrid/run_refine_grid_bsub.sh"
