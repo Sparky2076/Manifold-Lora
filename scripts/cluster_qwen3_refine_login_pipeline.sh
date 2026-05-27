@@ -11,26 +11,43 @@ source "$PROJECT_DIR/scripts/cluster_hf_cache_env.sh"
 
 SUBMIT_REFINE_GRID_AFTER_SMOKE="${SUBMIT_REFINE_GRID_AFTER_SMOKE:-0}"
 
+LORA_TYPE="${LORA_TYPE:-default}"
+if [[ "${LORA_TYPE}" == "mlora" ]]; then
+  _coarse_summary_default="$PROJECT_DIR/qwen3_autogrid/results_mmlu_mlora/summary.csv"
+  _refine_submit_script="server_submit_qwen3_refine_grid_mlora.sh"
+  _refine_log_default="$PROJECT_DIR/qwen3_mmlu_mlora_refine_grid_submit.log"
+  _smoke_dir_default="$PROJECT_DIR/qwen3_autogrid/smoke_refine_knowledge_mc_mlora"
+  _smoke_job_default="qwen3_refine_mlora_smoke"
+  _coarse_config="qwen3_autogrid.config"
+else
+  _coarse_summary_default="$PROJECT_DIR/qwen3_autogrid/results_mmlu/summary.csv"
+  _refine_submit_script="server_submit_qwen3_refine_grid.sh"
+  _refine_log_default="$PROJECT_DIR/qwen3_mmlu_refine_grid_submit.log"
+  _smoke_dir_default="$PROJECT_DIR/qwen3_autogrid/smoke_refine_knowledge_mc"
+  _smoke_job_default="qwen3_refine_smoke"
+  _coarse_config="qwen3_autogrid.config"
+fi
+
+COARSE_SUMMARY="${COARSE_SUMMARY:-$_coarse_summary_default}"
+if [[ ! -f "$COARSE_SUMMARY" ]]; then
+  echo "[qwen3-refine-pipeline] aggregate coarse first: python -m deepseek_autogrid.aggregate_results --config-module $_coarse_config" >&2
+  exit 2
+fi
+
+eval "$(python3 "$PROJECT_DIR/scripts/pick_qwen3_coarse_best_hparams.py" --summary-csv "$COARSE_SUMMARY")"
+
 if [[ -f "${CONDA_ROOT:-$HOME/miniconda3}/etc/profile.d/conda.sh" ]]; then
   # shellcheck source=/dev/null
   source "${CONDA_ROOT:-$HOME/miniconda3}/etc/profile.d/conda.sh"
   conda activate "${CONDA_ENV_NAME:-torch}"
 fi
 
-COARSE_SUMMARY="${COARSE_SUMMARY:-$PROJECT_DIR/qwen3_autogrid/results_mmlu/summary.csv}"
-if [[ ! -f "$COARSE_SUMMARY" ]]; then
-  echo "[qwen3-refine-pipeline] aggregate coarse first: python -m deepseek_autogrid.aggregate_results --config-module qwen3_autogrid.config" >&2
-  exit 2
-fi
-
-eval "$(python3 "$PROJECT_DIR/scripts/pick_qwen3_coarse_best_hparams.py" --summary-csv "$COARSE_SUMMARY")"
-
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
 export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 export HF_EVAL_OFFLINE="${HF_EVAL_OFFLINE:-1}"
 
-SMOKE_DIR="${SMOKE_DIR:-$PROJECT_DIR/qwen3_autogrid/smoke_refine_knowledge_mc}"
+SMOKE_DIR="${SMOKE_DIR:-$_smoke_dir_default}"
 echo "===== Phase C-refine: smoke lr=$SMOKE_LR r=$SMOKE_LORA_R a=$SMOKE_LORA_ALPHA wd=$SMOKE_WEIGHT_DECAY ====="
 rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR"
@@ -54,7 +71,7 @@ export BATCH_SIZE=1
 export GRAD_ACCUM_STEPS=1
 export TRUST_REMOTE_CODE=1
 export TORCH_DTYPE=bfloat16
-export LORA_TYPE=default
+export LORA_TYPE="${LORA_TYPE:-default}"
 export LR="$SMOKE_LR"
 export LORA_R="$SMOKE_LORA_R"
 export LORA_ALPHA="$SMOKE_LORA_ALPHA"
@@ -62,7 +79,7 @@ export WEIGHT_DECAY="$SMOKE_WEIGHT_DECAY"
 export SFT_ENABLE_THINKING=0
 export CONDA_ROOT="${CONDA_ROOT:-$HOME/miniconda3}"
 export EXCLUDE_HOSTS="${SMOKE_EXCLUDE_HOSTS:-gpu15,gpu17,gpu18}"
-export JOB_NAME="${SMOKE_JOB_NAME:-qwen3_refine_smoke}"
+export JOB_NAME="${SMOKE_JOB_NAME:-$_smoke_job_default}"
 
 echo "[qwen3-refine-pipeline] bsub smoke METRICS_DIR=$METRICS_DIR"
 _submit_out="$(bash "$PROJECT_DIR/deepseek/scripts/submit_bsub_sft.sh")"
@@ -93,8 +110,8 @@ if [[ "${SUBMIT_REFINE_GRID_AFTER_SMOKE:-0}" != "1" ]]; then
 fi
 
 sed -i 's/\r$//' scripts/*.sh qwen3_autogrid/*.sh deepseek/scripts/*.sh deepseek_autogrid/*.sh 2>/dev/null || true
-LOG="${QWEN3_REFINE_GRID_LOG:-$PROJECT_DIR/qwen3_mmlu_refine_grid_submit.log}"
-echo "===== Phase D-refine: nohup refine grid (48, MAX_STEPS=500) → $LOG ====="
+LOG="${QWEN3_REFINE_GRID_LOG:-$_refine_log_default}"
+echo "===== Phase D-refine: nohup refine grid (48, MAX_STEPS=500, lora_type=${LORA_TYPE}) → $LOG ====="
 unset MAX_STEPS EVAL_EVERY BATCH_SIZE GRAD_ACCUM_STEPS MAX_LENGTH
-nohup bash "$PROJECT_DIR/scripts/server_submit_qwen3_refine_grid.sh" >>"$LOG" 2>&1 &
-echo "[qwen3-refine-pipeline] nohup pid=${!} log=$LOG"
+nohup bash "$PROJECT_DIR/scripts/$_refine_submit_script" >>"$LOG" 2>&1 &
+echo "[qwen3-refine-pipeline] nohup pid=${!} log=$LOG lora_type=${LORA_TYPE}"

@@ -12,7 +12,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 m = importlib.import_module("qwen3_autogrid.config")
-results = ROOT / "qwen3_autogrid" / "results_mmlu"
+_lora = os.environ.get("LORA_TYPE", "default").strip()
+if _lora == "mlora":
+    results = ROOT / "qwen3_autogrid" / "results_mmlu_mlora"
+    _expect = 45
+else:
+    results = ROOT / "qwen3_autogrid" / "results_mmlu"
+    _expect = 45
 st, ev = m.MAX_STEPS_DEFAULT, m.EVAL_EVERY_DEFAULT
 exp = st // ev
 rows = []
@@ -48,7 +54,7 @@ for lr, r, a, wd in m.iter_grid():
         }
     )
 rows.sort(key=lambda x: x["best_ppl"])
-print(f"strict_complete={len(rows)}/45")
+print(f"strict_complete={len(rows)}/{_expect}")
 print("rank\tbest_ppl\tlast_ppl\tlr\tr\ta\twd\tcurve(st:ppl)")
 for i, r in enumerate(rows, 1):
     a = int(r["a"]) if r["a"] == int(r["a"]) else r["a"]

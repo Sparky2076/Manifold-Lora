@@ -11,7 +11,12 @@ cd "$PROJECT_DIR"
 echo "hostname: $(hostname)"
 echo ""
 
-for f in deepseek_autogrid/.grid_submitter.pid deepseek_autogrid/.grid_submitter_mlora.pid distilbert_autogrid/.grid_submitter.pid; do
+for f in \
+  deepseek_autogrid/.grid_submitter.pid \
+  deepseek_autogrid/.grid_submitter_mlora.pid \
+  distilbert_autogrid/.grid_submitter.pid \
+  qwen3_autogrid/.grid_submitter_mlora.pid \
+  qwen3_autogrid/.grid_submitter_mlora_refine.pid; do
   [[ -f "$f" ]] || continue
   pid="$(tr -d ' \n' < "$f")"
   echo "=== $f -> pid=$pid ==="
