@@ -2,7 +2,7 @@
 
 由 `python -m deepseek_autogrid.analyze_results` 自动生成。
 
-- **生成时间（UTC）**：2026-05-26 01:32:00Z
+- **生成时间（UTC）**：2026-05-27 11:01:15Z
 - **有效行数**：48（status=ok）
 
 ## 整体指标（best_eval_perplexity）
