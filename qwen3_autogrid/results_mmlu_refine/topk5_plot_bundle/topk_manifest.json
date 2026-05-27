@@ -1,0 +1,66 @@
+{
+  "runs": [
+    "lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03",
+    "lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02",
+    "lr_3p0000e-04_r32_a64_st500_wd_0p0000e00",
+    "lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02",
+    "lr_3p0000e-04_r64_a128_st500_wd_0p0000e00"
+  ],
+  "entries": [
+    {
+      "run_name": "lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03",
+      "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03",
+      "train_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03/train_sft.csv",
+      "train_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03_train_sft.csv",
+      "test_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03/test_sft.csv",
+      "test_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03_test_sft.csv",
+      "mmlu_eval_full": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03/mmlu_eval_full.json",
+      "mmlu_eval_full_progress": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03/mmlu_eval_full_progress.csv",
+      "mmlu_eval_tiny": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-03/mmlu_eval.json"
+    },
+    {
+      "run_name": "lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02",
+      "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02",
+      "train_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02/train_sft.csv",
+      "train_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02_train_sft.csv",
+      "test_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02/test_sft.csv",
+      "test_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02_test_sft.csv",
+      "mmlu_eval_full": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02/mmlu_eval_full.json",
+      "mmlu_eval_full_progress": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02/mmlu_eval_full_progress.csv",
+      "mmlu_eval_tiny": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_4p0000e-04_r32_a64_st500_wd_1p0000e-02/mmlu_eval.json"
+    },
+    {
+      "run_name": "lr_3p0000e-04_r32_a64_st500_wd_0p0000e00",
+      "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00",
+      "train_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00/train_sft.csv",
+      "train_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00_train_sft.csv",
+      "test_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00/test_sft.csv",
+      "test_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00_test_sft.csv",
+      "mmlu_eval_full": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00/mmlu_eval_full.json",
+      "mmlu_eval_full_progress": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00/mmlu_eval_full_progress.csv",
+      "mmlu_eval_tiny": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_0p0000e00/mmlu_eval.json"
+    },
+    {
+      "run_name": "lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02",
+      "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02",
+      "train_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02/train_sft.csv",
+      "train_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02_train_sft.csv",
+      "test_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02/test_sft.csv",
+      "test_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02_test_sft.csv",
+      "mmlu_eval_full": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02/mmlu_eval_full.json",
+      "mmlu_eval_full_progress": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02/mmlu_eval_full_progress.csv",
+      "mmlu_eval_tiny": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r32_a64_st500_wd_1p0000e-02/mmlu_eval.json"
+    },
+    {
+      "run_name": "lr_3p0000e-04_r64_a128_st500_wd_0p0000e00",
+      "metrics_dir": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00",
+      "train_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00/train_sft.csv",
+      "train_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00_train_sft.csv",
+      "test_sft_csv": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00/test_sft.csv",
+      "test_sft_copy": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/topk5_plot_bundle/sft_curves/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00_test_sft.csv",
+      "mmlu_eval_full": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00/mmlu_eval_full.json",
+      "mmlu_eval_full_progress": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00/mmlu_eval_full_progress.csv",
+      "mmlu_eval_tiny": "/nfsshare/home/wangxiao/Manifold-Lora/qwen3_autogrid/results_mmlu_refine/lr_3p0000e-04_r64_a128_st500_wd_0p0000e00/mmlu_eval.json"
+    }
+  ]
+}

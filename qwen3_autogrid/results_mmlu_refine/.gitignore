@@ -5,3 +5,6 @@
 !deepseek_grid_analysis.md
 !mmlu_summary.csv
 !summary_mmlu.csv
+!summary_topk_full_mmlu.csv
+!topk5_plot_bundle/
+!topk5_plot_bundle/**
