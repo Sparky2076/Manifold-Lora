@@ -24,9 +24,9 @@ exp=st//ev
 n=0
 for lr,r,a,wd in m.iter_grid():
  d=root/m.run_dir_name(lr,r,a,st,wd)
- pt,csv=d/'sft_lora_state.pt',d/'test_sft.csv'
- if not (pt.is_file() and csv.is_file()): continue
- recs=list(csv.DictReader(csv.open()))
+ pt,test_csv=d/'sft_lora_state.pt',d/'test_sft.csv'
+ if not (pt.is_file() and test_csv.is_file()): continue
+ recs=list(csv.DictReader(test_csv.open()))
  if len(recs)<exp: continue
  if max(int(float(r['iteration'])) for r in recs)<st: continue
  n+=1
