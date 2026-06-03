@@ -1,185 +1,80 @@
-# DeepSeek 全因子网格（LoRA / mLoRA）
+# DeepSeek 调参结果（LoRA / mLoRA）
 
-## 两阶段工作流（先 LoRA 全网格，再以 BBH 定稿）
+## 实验设置
 
-1. **阶段一（LoRA SFT 网格）**：在仓库根目录执行  
-   `bash deepseek_autogrid/run_lora_grid_bsub.sh`（显式 `LORA_TYPE=default`）或沿用 `bash scripts/server_submit_deepseek_grid.sh`。跑完后：  
-   `python -m deepseek_autogrid.aggregate_results`（可加 `--allow-incomplete`）。每个 run 目录会含 **`sft_lora_state.pt`**（供后续合并），**不会**在训练结束时写 `model_merged_hf/`。
-2. **阶段二（Top-K：合并 → BBH）**：例如  
-   `TOP_K=10 bash scripts/server_submit_deepseek_bbh_topk_from_summary.sh`：默认先对 Top-K 执行 **`scripts/export_merged_deepseek_topk.sh`** 生成 **`model_merged_hf/`**，再以 **`SKIP_MERGE=1`** 递交仅 lm-eval 的 BBH 作业。可设 **`EXPORT_MERGED_FIRST=0`** 若你已在登录节点手动合并完毕。
-3. **汇总 BBH**：`python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results` → `bbh_summary.csv`。若需与阶段一指标并排排名：  
-   `python scripts/summarize_deepseek_bbh_results.py --results-root deepseek_autogrid/results --summary-csv deepseek_autogrid/results/summary.csv`。
+| 项 | 值 |
+|----|-----|
+| 底座 | `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B` |
+| 训练数据 | **`alpaca_train_1k`**（阶段一/二/相关性 refine）；**`alpaca_train_full`**（定稿 Top-K，2600 step） |
+| 格式 | Chat SFT；验证比例 **20%**（定稿阶段同） |
+| 搜索空间 | `lr × lora_r × lora_alpha × weight_decay` |
+| 短网格步数 | **500 step**，每 **100 step** eval |
+| 验证指标 | **`best_eval_perplexity`**（全程最低验证 PPL，非末次 PPL） |
 
-### DeepSeek 第二轮：按第一轮结果细搜（独立目录）
+## 结果目录一览
 
-第一轮产出在 **`deepseek_autogrid/results/`**（`summary.csv` / `deepseek_grid_analysis.md`）。细网格定义见 **`deepseek_autogrid/config_refine.py`**（只在 **2e-3～2e-4** 附近加密 lr、**r∈{32,64}**、alpha 加 48 等），输出到 **`deepseek_autogrid/results_refine/`**，与粗网格互不覆盖。
+| 目录 | 阶段 | LoRA 类型 | 说明 |
+|------|------|-----------|------|
+| [`results/`](results/) | **粗网格** | LoRA | 90 组；最优 PPL **3.891**（`lr=2e-3, r=64, α=16`） |
+| [`results_refine/`](results_refine/) | **细网格** | LoRA | 独立 lr 加密；与粗网格目录不覆盖 |
+| [`results_correlation_refine/`](results_correlation_refine/) | **相关性驱动 refine** | LoRA | 由粗网格 Spearman/η² 自动生成密网格 |
+| [`results_mlora/`](results_mlora/) | **粗网格** | mLoRA | 90 组 summary |
+| [`results_mlora_correlation_refine/`](results_mlora_correlation_refine/) | 相关性 refine | mLoRA | summary + analysis |
+| [`results_final/`](results_final/) | **全量 Alpaca 定稿 Top-3** | LoRA | 2600 step；含 3 组完整 `train_sft.csv` / `test_sft.csv` |
+| [`results_mlora_final/`](results_mlora_final/) | **全量 Alpaca 定稿 Top-3** | mLoRA | 同上，3 组曲线 |
+| [`figures/`](figures/) | 可视化 | LoRA + mLoRA | 定稿最优 run 验证 PPL 收敛对比图 |
 
-```bash
-# 登录节点（与粗网格相同 bsub 链，独立 PID 文件与结果目录）
-nohup bash scripts/server_submit_deepseek_refine_grid.sh > deepseek_refine_submit.log 2>&1 &
+关联目录（仓库根）：
 
-python -m deepseek_autogrid.aggregate_results \
-  --config-module deepseek_autogrid.config_refine \
-  --results-root deepseek_autogrid/results_refine
-python -m deepseek_autogrid.analyze_results \
-  --config-module deepseek_autogrid.config_refine \
-  --summary deepseek_autogrid/results_refine/summary.csv
-```
+| 目录 | 说明 |
+|------|------|
+| [`deepseek/results_final_lora_long_st1200/`](../deepseek/results_final_lora_long_st1200/) | 粗网格最优组合 **1200 step** 长训曲线 |
+| [`deepseek/results_final_mlora_long_st1500/`](../deepseek/results_final_mlora_long_st1500/) | mLoRA 代表组合 **1500 step** 长训曲线 |
+| [`deepseek_bbh_autogrid/results/`](../deepseek_bbh_autogrid/results/) | BBH 管线相关 SFT 网格（142 组 summary） |
 
-对细网格跑 BBH Top-K 时：将 **`RESULTS_ROOT`** / **`SUMMARY_CSV`** 指到 **`results_refine`**，并同样先 **`export_merged`** 再 **`SKIP_MERGE` BBH**（与粗网格流程一致）。
+## 粗网格要点（`results/`）
 
-### 第二轮（可选）：按 `summary.csv` 相关性自动生成密网格
+- **Top-1**：PPL **3.891** — `lr=2e-3, r=64, α=16, wd=0.01`
+- **稳定 lr 带**：`2e-4` 档 multiple runs PPL ≈ 3.9–4.0
+- **失效区**：`2e-7` 与学习率过高组合 PPL 爆炸（见 analysis 尾部）
+- 分析：[`results/deepseek_grid_analysis.md`](results/deepseek_grid_analysis.md)
 
-对已完成粗网格的 `summary.csv` 运行：
+## 定稿 Top-K（全量 Alpaca，`results_final/` / `results_mlora_final/`）
 
-```bash
-python -m deepseek_autogrid.suggest_refine_from_summary
-# 或指定路径：python -m deepseek_autogrid.suggest_refine_from_summary --summary path/to/summary.csv
-```
+选型规则见 [`Alpaca_train_full_best_runs.md`](Alpaca_train_full_best_runs.md)：在 `summary.csv` 的 `status=ok` 行中取 **`best_eval_perplexity` 最小**。
 
-脚本用 **Spearman（|r|）** 与 **单因素 eta^2**（默认阈值与 `--spearman-strong` / `--eta2-strong` 可调）判断各超参相对 **`best_eval_perplexity`** 是否「强相关」：**强相关维在 Top 区做 log 加密**；**弱相关维**按边际均值取 **top-k**（`--weak-r-levels` / `--weak-alpha-levels`）。`weight_decay` 弱相关时默认 **只保留边际最优一档**（`--weak-wd-both` 可改回两档全扫）。总 job 约 **`--max-jobs`（默认 50）**：先定 r/α/wd，再令 **lr 点数 = min(`--lr-dense-points`, floor(max_jobs/(r×α×wd)))** 以 **优先加密 lr**；仍超限时再收缩。会生成 **`deepseek_autogrid/results/correlation_refine_suggestion.md`** 与 **`deepseek_autogrid/config_correlation_refine.py`**。若四因子均未达强相关阈值，脚本以退出码 **2** 结束。
+| 方法 | 最优 PPL | 代表 run |
+|------|----------|----------|
+| LoRA | **3.7008** | `lr≈1.62e-3, r=32, α=32, wd=0.01` |
+| mLoRA | （见 `results_mlora_final/summary.csv`） | 3 组完整曲线已归档 |
 
-当前网格默认配置：
+每组 run 目录含：
 
-- 数据：`alpaca_train_1k`
-- SFT 格式：**`SFT_FORMAT=chat`**（各 `config*.py` 中 **`SFT_FORMAT_DEFAULT`**；可用环境变量覆盖）
-- 验证比例：`SFT_VAL_RATIO=0.2`
-- 步数：`MAX_STEPS=500`（默认，约为原 1500 的 1/3，缩短单 job），`EVAL_EVERY=100`
-- 参数网格（粗略）：`lr(5) × r(3) × alpha(3) × wd(2) = 90` 组（每种 LoRA 类型）
+- `run_meta.json` — 超参与步数
+- `train_sft.csv` / `test_sft.csv` — 列含 `iteration`, `eval_loss`, `eval_perplexity`
 
-## 服务器提交（默认 nohup）
+## 下游 benchmark
 
-LoRA:
+### BBH
 
-```bash
-cd ~/Manifold-Lora
-export CONDA_ROOT="$HOME/miniconda3"
-nohup bash scripts/server_submit_deepseek_grid.sh > deepseek_grid_submit.log 2>&1 &
-tail -f deepseek_grid_submit.log
-```
+- SFT 阶段汇总：[`deepseek_bbh_autogrid/results/summary.csv`](../deepseek_bbh_autogrid/results/summary.csv)（500 step 短网格，含 post-peak 发散指标）
+- **合并 LoRA → lm-eval BBH** 的完整 benchmark CSV **未**纳入本归档（体积与路径在集群）；定稿 Top-K 合并与 BBH 投递在开发仓库脚本中完成
 
-mLoRA:
+### 长训稳定性
 
-```bash
-cd ~/Manifold-Lora
-export CONDA_ROOT="$HOME/miniconda3"
-nohup bash scripts/server_submit_deepseek_grid_mlora.sh > deepseek_grid_mlora_submit.log 2>&1 &
-tail -f deepseek_grid_mlora_submit.log
-```
+- LoRA 1200 step：[`deepseek/results_final_lora_long_st1200/`](../deepseek/results_final_lora_long_st1200/) — 粗网格最优超参延伸训练
+- mLoRA 1500 step：[`deepseek/results_final_mlora_long_st1500/`](../deepseek/results_final_mlora_long_st1500/)
 
-`server_submit_deepseek_grid_mlora.sh` 内会 **`export GRID_RESUME=1`**，避免继承此前 shell 里误留的 **`GRID_RESUME=0`** 导致整网反复重交。若你**刻意**要全量重跑，请用 `GRID_RESUME=0 bash scripts/server_submit_deepseek_grid.sh`，并自行 `export LORA_TYPE=mlora` 与 `RESULTS_ROOT=.../results_mlora`。
+## 文件说明
 
-## 找不到「提交脚本」进程？
+| 文件 | 含义 |
+|------|------|
+| `summary.csv` | 全网格汇总；关键列 `best_eval_perplexity`, `best_iteration`, `status` |
+| `deepseek_grid_analysis.md` | 排名、按 lr/r/wd 分组统计 |
+| `topk_source.json` | 定稿 Top-K 来源（`results_final/`） |
+| `deepseek_grid_snapshot.md` | 粗网格快照说明（历史参考） |
 
-- **`bjobs` 里的 JOBID** 是 **LSF 训练作业**；**网格提交循环**是登录节点上的 **bash 进程**，两者不是同一个号。
-- **`pgrep` 要在启动 `nohup` 的那台登录节点上执行**（例如 `bjobs` 里 `FROM_HOST=mgtgpu01` 则到 `mgtgpu01` 上 `pgrep`）。换一台登录节点常会「查不到」。
-- 更新脚本后，提交循环会写 **`deepseek_autogrid/.grid_submitter.pid`**（LoRA）或 **`.grid_submitter_mlora.pid`**（mLoRA）；或运行 **`bash scripts/grid_submitter_status.sh`**。
+## 备注
 
-## `GRID_RESUME=0`（全量重跑）注意
-
-设为 `0` 时会对**每个组合都再 `bsub` 一次**（无视已有 `test_sft.csv`）。脚本在**第一轮递交结束并等队列排空后就会退出**，不会 endless 重复整网；若你曾用旧脚本看到「90 组已满仍在不停提交」，多半是旧逻辑在第二轮又把 90 组交了一遍——请 `git pull` 更新。
-
-## 队列节流（默认）
-
-`run_grid_bsub.sh` 默认 **`GRID_MAX_PEND=1`**：仅当本账号 **`PEND=0`** 时才再 `bsub` 下一单，减轻站点「Pending 上限 / User permission denied」。若仍偶发拒绝，脚本会**等待后重试**，不会整段退出。可调：`GRID_MAX_RUN`、`GRID_MAX_PEND`、`GRID_POLL_SEC`、`SUBMIT_SLEEP_SEC`（关闭 PEND 限制：`GRID_MAX_PEND=0`，不推荐）。
-
-## 自动补齐缺失
-
-检测：
-
-```bash
-python -m deepseek_autogrid.fill_missing_runs
-```
-
-仅补交缺失：
-
-```bash
-python -m deepseek_autogrid.fill_missing_runs --submit-bsub
-```
-
-## 汇总与分析
-
-默认要求全部组合完成（否则报错退出）：
-
-```bash
-python -m deepseek_autogrid.aggregate_results
-python -m deepseek_autogrid.analyze_results
-```
-
-阶段性检查可加 `--allow-incomplete`。
-
-### BBH 额外汇总（不替代原 perplexity 逻辑）
-
-若你对某些 run 额外写入了 `bbh_eval.json`（见 `deepseek/README.md` 的 BBH 小节），可独立汇总：
-
-```bash
-python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results
-python -m deepseek_autogrid.aggregate_bbh_results --results-root deepseek_autogrid/results_mlora
-```
-
-输出 `bbh_summary.csv`（按 `bbh_mean_acc` 降序），不会影响现有 `summary.csv` / `analyze_results`。
-
-## 结果目录
-
-- LoRA: `deepseek_autogrid/results/`
-- mLoRA: `deepseek_autogrid/results_mlora/`
-
-建议在各自目录下保留：
-- `summary.csv`
-- `missing_runs.csv`
-- `deepseek_grid_analysis.md`
-
-### 本仓库已随代码提交的 LoRA 网格产物（数据说明）
-
-当前默认网格为 **90 组**（`lr×r×alpha×wd`，`MAX_STEPS=500`）。仓库内 **`deepseek_autogrid/results/summary.csv`** 为聚合后的每组合一行指标（含 `best_eval_perplexity`、`metrics_dir`、`status` 等）；**`deepseek_autogrid/results/deepseek_grid_analysis.md`** 为由 `python -m deepseek_autogrid.analyze_results` 生成的 Markdown 统计与 Top 组合说明。逐 run 的大目录仍由 `.gitignore` 忽略，仅保留轻量汇总与说明文件。`aggregate_results.py` 仅收录与 `config.iter_grid()` 目录名一致的 run，避免旧实验目录再次混入 `summary.csv`。
-
-## BBH 专用训练网格（独立，不影响原 grid）
-
-若需要单独跑 BBH 调参训练网格（你要求的 `lr=3e-3..3e-7` 对数、`r=[16,32,64]`），使用独立脚本：
-
-```bash
-bash scripts/server_submit_deepseek_bbh_grid.sh        # LoRA
-bash scripts/server_submit_deepseek_bbh_grid_mlora.sh  # mLoRA
-```
-
-该网格目录在 `deepseek_bbh_autogrid/`，默认结果输出：
-- LoRA: `deepseek_bbh_autogrid/results/`
-- mLoRA: `deepseek_bbh_autogrid/results_mlora/`
-
-跑完汇总：
-
-```bash
-python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results
-python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results_mlora
-```
-
-`summary.csv` 中新增两列用于衡量“达到局部最优后是否崩盘”：
-- `post_peak_last_over_best`：最后一步 perplexity / 最优 perplexity（越接近 1 越稳）
-- `post_peak_tail_mean_over_best`：最优点之后区间均值 / 最优 perplexity（越小越稳）
-
-### 直接可跑命令（服务器）
-
-LoRA:
-
-```bash
-cd ~/Manifold-Lora
-export CONDA_ROOT="$HOME/miniconda3"
-nohup bash scripts/server_submit_deepseek_bbh_grid.sh > deepseek_bbh_grid_submit.log 2>&1 &
-tail -f deepseek_bbh_grid_submit.log
-```
-
-mLoRA:
-
-```bash
-cd ~/Manifold-Lora
-export CONDA_ROOT="$HOME/miniconda3"
-nohup bash scripts/server_submit_deepseek_bbh_grid_mlora.sh > deepseek_bbh_grid_mlora_submit.log 2>&1 &
-tail -f deepseek_bbh_grid_mlora_submit.log
-```
-
-跑完一圈后汇总（看崩盘指标）：
-
-```bash
-python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results
-python -m deepseek_bbh_autogrid.aggregate_results --results-root deepseek_bbh_autogrid/results_mlora
-```
+- checkpoint（`sft_lora_state.pt`、`model_merged_hf/`）**未**上传 GitHub。
+- 定稿 analysis 含 **post-peak** 列：衡量最优点之后是否发散（越接近 1 越稳）。

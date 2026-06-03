@@ -1,125 +1,97 @@
-# Qwen3-0.6B（仅 MMLU 数据管线）
+# Qwen3-0.6B 调参结果（MMLU 数据管线）
 
-**训练数据**一律为 **`knowledge_mc_mix`**（ARC-Easy / ARC-Challenge / SciQ）。LoRA：**`lora_alpha = 2 × lora_r`**（不再对 α 独立网格）。  
-**weight_decay**：`0.0, 0.001, 0.01`（3 档）。超参筛选仍以 **tinyMMLU → summary_mmlu → 全量 MMLU** 为准。
+## 实验设置
 
-与 [`deepseek_autogrid`](../deepseek_autogrid/README.md) 共用 [`run_grid_bsub.sh`](../deepseek_autogrid/run_grid_bsub.sh)。
+| 项 | 值 |
+|----|-----|
+| 底座 | **`Qwen/Qwen3-0.6B`**（bfloat16，eager attention） |
+| 训练数据 | **`knowledge_mc_mix`**（ARC-Easy / ARC-Challenge / SciQ） |
+| 适配器 | LoRA 与 mLoRA；**`lora_alpha = 2 × lora_r`**（α 不独立网格） |
+| weight_decay | `{0, 0.001, 0.01}` |
+| 步数 | **500 step**，每 **100 step** eval；验证比例 **10%** |
+| 粗网格 | 5 lr × 3 r × 3 wd = **45** 组 |
+| 细网格 | 8 lr × 2 r × 3 wd = **48** 组（r∈{32,64} → α∈{64,128}） |
 
-- **底座**：`Qwen/Qwen3-0.6B`；**dtype**：默认 `bfloat16`；**`TRUST_REMOTE_CODE=1`**  
-- **LoRA 目标**：`q_proj,...,down_proj`（可 `LORA_TARGETS` 覆盖）  
-- **`config_mmlu.py`**：`config.py` 的兼容 shim
+## 验证指标（两阶段）
 
-## 网格规模（约）
+1. **SFT 验证 PPL** — `summary.csv` 中 `best_eval_perplexity`（全程最低）
+2. **tinyMMLU** — 各 run 目录下 `mmlu_eval.json`；汇总为 `mmlu_summary.csv`，合并 SFT 为 `summary_mmlu.csv`
 
-| 阶段 | LR 档 × r 档 × WD 档 | 组合数 |
-|------|---------------------|--------|
-| 粗网格 | 5 × 3 × 3 | **45** |
-| 细网格 | 8 × 2 × 3 | **48** |
+## 结果目录
 
-（细网格：`r ∈ {32, 64}` → `α ∈ {64, 128}`。）
+| 目录 | 阶段 | 方法 | 主要文件 |
+|------|------|------|----------|
+| [`results_mmlu/`](results_mmlu/) | 粗网格 | LoRA | `summary.csv`, `deepseek_grid_analysis.md` |
+| [`results_mmlu_refine/`](results_mmlu_refine/) | 细网格 | LoRA | 上列 + `summary_mmlu.csv`, `summary_topk_full_mmlu.csv`, `topk5_plot_bundle/` |
+| [`results_mmlu_mlora/`](results_mmlu_mlora/) | 粗网格 | mLoRA | `summary.csv`, `summary_mmlu.csv`, `mmlu_summary.csv` |
+| [`results_mmlu_mlora_refine/`](results_mmlu_mlora_refine/) | 细网格 | mLoRA | 同上 |
 
-## 目录与结果
+## 粗网格要点（LoRA，`results_mmlu/`，45/45 完成）
 
-| 阶段 | 脚本 | 输出 |
-|------|------|------|
-| 粗网格 LoRA | `run_lora_grid_bsub.sh` | `qwen3_autogrid/results_mmlu/` |
-| 粗网格 mLoRA | `run_mlora_grid_bsub.sh` | `qwen3_autogrid/results_mmlu_mlora/` |
-| 细网格 LoRA | `run_refine_grid_bsub.sh` | `qwen3_autogrid/results_mmlu_refine/` |
-| 细网格 mLoRA | `run_mlora_refine_grid_bsub.sh` | `qwen3_autogrid/results_mmlu_mlora_refine/` |
+| 排名 | best PPL | 超参 |
+|------|----------|------|
+| 1 | **1.0344** | `lr=2e-5, r=64, α=128, wd=0` |
+| 2 | 1.0345 | `lr=2e-5, r=64, α=128, wd=0.01` |
 
-## 登录节点：缓存 → smoke → Phase D（nohup 粗网格）
+> 极低 lr（`2e-7`）组合 PPL 发散至 5–88，见 analysis 尾部。
 
-1. **`scripts/cluster_hf_cache_env.sh`**：未设置时在登录节点与工作节点上使用同一套默认路径  
-   **`HF_HOME` / `HF_DATASETS_CACHE`**（若存在 **`/nfsshare/home/$USER`** 则用其下 **`.cache/huggingface`**）；并默认 **`HF_HUB_DOWNLOAD_TIMEOUT=300`**。  
-   可选：若 etag 校验易卡住，可手动 **`export HF_HUB_ETAG_TIMEOUT=120`**（或按需）。
-2. **`scripts/cache_hf_qwen3_login.sh`**：**镜像优先**（默认 **`HF_ENDPOINT=https://hf-mirror.com`**，除非已显式设定）；失败后回退官方。**`FORCE_OFFICIAL_HF_ONLY=1`** 时仅用官方站。  
-   预缓存里 tokenizer 使用 **`use_fast=False`**，降低镜像损坏 fast tokenizer 的概率（训练侧 **`models_sft`** 同步时同理）。
-3. **`scripts/cluster_qwen3_login_lora_pipeline.sh`** / **`scripts/cluster_qwen3_smoke_then_coarse_grid.sh`**：Phase B 缓存 → Phase C **`knowledge_mc_mix`** smoke → 成功后才 **Phase D nohup** 投递 **`server_submit_qwen3_grid.sh`**。**`bsub`** 作业通过 **`deepseek/scripts/submit_bsub_sft.sh`** 带入 **`HF_HOME`** 与 **`HF_DATASETS_CACHE`**，避免计算节点重复全量下载（共享 NFS 典型）。
+## 细网格要点（LoRA，`results_mmlu_refine/`，48/48 完成）
 
-一键命令见下一节。
+| 排名 | best PPL | tinyMMLU（best） | 超参 |
+|------|----------|------------------|------|
+| 1 | **1.0352** | 0.4968 | `lr=3e-4, r=32, α=64, wd=0.001` |
+| 2 | 1.0352 | — | `lr=2e-4, r=64, α=128, wd=0.001` |
 
-## 一键：冒烟通过后再投粗网格
+分析：[`results_mmlu_refine/deepseek_grid_analysis.md`](results_mmlu_refine/deepseek_grid_analysis.md)
 
-```bash
-bash scripts/cluster_qwen3_smoke_then_coarse_grid.sh
-```
+## LoRA vs mLoRA 对比
 
-等价于「cache + smoke 成功后才 `SUBMIT_GRID_AFTER_SMOKE=1`」；冒烟失败会直接 **exit**，**不会** `nohup` 网格。
+详见 [`mlora_vs_lora_comparison.md`](mlora_vs_lora_comparison.md)（2026-05-28 汇总）：
 
-也可手动：
+| 指标 | LoRA | mLoRA | 结论 |
+|------|------|-------|------|
+| 细网格 best PPL | **1.0352** | 1.0353 | LoRA 略优 |
+| 细网格 best tinyMMLU | 49.68% | **54.28%** | mLoRA **+4.6 pp** |
+| 细网格 Top-5 tinyMMLU mean | 48.85% | **53.97%** | mLoRA **+5.1 pp** |
+| Spearman ρ（48 组配对） | — | — | **0.846**（排序高度一致） |
 
-```bash
-SUBMIT_GRID_AFTER_SMOKE=1 bash scripts/cluster_qwen3_login_lora_pipeline.sh
-```
+## 最终 benchmark（全量 MMLU）
 
-`SUBMIT_MMLU_GRID_AFTER_SMOKE=1` 与 `SUBMIT_GRID_AFTER_SMOKE=1` 等价（兼容旧名）。
+文件：[`results_mmlu_refine/summary_topk_full_mmlu.csv`](results_mmlu_refine/summary_topk_full_mmlu.csv)
 
-**预缓存**：`bash scripts/cache_hf_qwen3_login.sh`  
+| 项 | 值 |
+|----|-----|
+| 选取 | 细网格 tinyMMLU **Top-5** LoRA run |
+| LoRA Top-5 **全量 MMLU mean** | **0.4543**（5/5 完成） |
+| 最佳单 run full MMLU | **0.4666** — `lr=3e-4, r=32, α=64, wd=0.001` |
+| mLoRA Top-5 full MMLU | 投递中/未完成（对比 md 中标记 pending） |
 
-**tinyMMLU 扫描（与当前粗网格 run 名一致）**：`bash scripts/server_submit_qwen3_mmlu_coarse_eval.sh`
+可视化 bundle：[`results_mmlu_refine/topk5_plot_bundle/`](results_mmlu_refine/topk5_plot_bundle/)
 
-## 本机汇总
+- `best_run_sft_trend.png` — Top run 验证 PPL 曲线
+- `best_run_mmlu_acc_trend.png` — MMLU 准确率趋势
+- `sft_curves/` — Top-5 部分 run 的 train/test SFT CSV
+- `summary_topk.csv`, `topk_manifest.json`
 
-```bash
-python -m deepseek_autogrid.aggregate_results --config-module qwen3_autogrid.config
+## 尚未纳入本归档的 benchmark
 
-python -m deepseek_autogrid.analyze_results \
-  --config-module qwen3_autogrid.config \
-  --summary qwen3_autogrid/results_mmlu/summary.csv
+以下在集群脚本中定义，**结果 CSV 未 push 到本仓库**：
 
-python -m deepseek_autogrid.aggregate_mmlu_results --results-root qwen3_autogrid/results_mmlu
-python scripts/join_sft_mmlu_summary.py \
-  --sft-summary qwen3_autogrid/results_mmlu/summary.csv \
-  --mmlu-summary qwen3_autogrid/results_mmlu/mmlu_summary.csv \
-  --output qwen3_autogrid/results_mmlu/summary_mmlu.csv
+- **BBH** Top-K（`server_submit_qwen3_bbh_topk_from_summary.sh`）
+- **GSM8K** Top-3 refine（`server_submit_qwen3_gsm8k_top3_refine.sh`）
 
-# 细网格
-python -m deepseek_autogrid.aggregate_results \
-  --config-module qwen3_autogrid.config_refine \
-  --results-root qwen3_autogrid/results_mmlu_refine
-python -m deepseek_autogrid.analyze_results \
-  --config-module qwen3_autogrid.config_refine \
-  --summary qwen3_autogrid/results_mmlu_refine/summary.csv
-```
+## 文件列说明（`summary.csv`）
 
-定稿评测：**全量 MMLU** → `scripts/server_submit_qwen3_mmlu_topk_from_summary.sh`；**BBH** → `scripts/server_submit_qwen3_bbh_topk_from_summary.sh`；**GSM8K Top-K** → `scripts/server_submit_qwen3_gsm8k_top3_refine.sh`；一键 **MMLU+BBH+GSM8K**：`scripts/server_submit_qwen3_final_benchmark_topk.sh`。
+| 列 | 含义 |
+|----|------|
+| `best_eval_perplexity` | 验证集最低 PPL |
+| `best_iteration` | 达到最优 PPL 的 step |
+| `last_eval_perplexity` | 第 500 step 的 PPL |
+| `sft_preset` | 固定为 `knowledge_mc_mix` |
+| `lora_type` | `default`（LoRA）或 mLoRA 标识 |
+| `status` | `ok` 表示 500 step 完整且指标有限 |
 
-## mLoRA 三阶段管线（与 LoRA 同网格 / 同数据）
+## 备注
 
-超参与 LoRA 相同（粗 45 + 细 48，`knowledge_mc_mix`，`alpha=2*r`）。共用 `deepseek_autogrid/run_grid_bsub.sh`，通过 **`LORA_TYPE=mlora`** 与 **`RESULTS_ROOT`** 区分目录。
-
-| 阶段 | 集群入口 | 结果目录 |
-|------|----------|----------|
-| 粗网格 SFT | `bash scripts/cluster_qwen3_mlora_smoke_then_coarse_grid.sh` | `results_mmlu_mlora/` |
-| 细网格 SFT | `bash scripts/cluster_qwen3_mlora_refine_smoke_then_grid.sh` | `results_mmlu_mlora_refine/` |
-| tinyMMLU | `LORA_TYPE=mlora bash scripts/server_submit_qwen3_mmlu_refine_eval.sh` | 各 run 下 `mmlu_eval.json` |
-| Top-5 全量 MMLU | `bash scripts/cluster_qwen3_mmlu_mlora_full_top5_submit.sh` | `summary_mmlu.csv` + `topk5_plot_bundle/` |
-
-**监控（集群）**
-
-```bash
-tail -f ~/Manifold-Lora/qwen3_mmlu_mlora_grid_submit.log
-LORA_TYPE=mlora python3 ~/Manifold-Lora/scripts/_cluster_summarize_qwen3_complete.py
-bjobs | grep qwen3_mmlu_grid_mlora
-bash scripts/grid_submitter_status.sh
-```
-
-**本机汇总（粗/细）**
-
-```bash
-python -m deepseek_autogrid.aggregate_results --config-module qwen3_autogrid.config \
-  --results-root qwen3_autogrid/results_mmlu_mlora
-python -m deepseek_autogrid.aggregate_results --config-module qwen3_autogrid.config_refine \
-  --results-root qwen3_autogrid/results_mmlu_mlora_refine
-python -m deepseek_autogrid.aggregate_mmlu_results --results-root qwen3_autogrid/results_mmlu_mlora_refine
-python scripts/join_sft_mmlu_summary.py \
-  --sft-summary qwen3_autogrid/results_mmlu_mlora_refine/summary.csv \
-  --mmlu-summary qwen3_autogrid/results_mmlu_mlora_refine/mmlu_summary.csv \
-  --output qwen3_autogrid/results_mmlu_mlora_refine/summary_mmlu.csv
-```
-
-补投未完成粗网格：`bash scripts/cluster_nohup_qwen3_grid_mlora_rerun_incomplete.sh`（勿杀 RUN/PEND 训练 job）。
-
-节流向：`GRID_MAX_PEND`、`GRID_MAX_RUN`、`SUBMIT_SLEEP_SEC`。
-
-**遗留目录**：旧的粗网格目录（例如按 90 组或自由 α 跑出来的 run）可能与当前 `alpha=2*r` 命名 **不一致**，`aggregate_results` 只会收录与当前 `iter_grid()` 匹配的 run 名。
+- 不含 checkpoint（`sft_lora_state.pt`）与训练代码。
+- 粗网格 LoRA **未**跑 tinyMMLU；mLoRA 粗网格有完整 tinyMMLU（45/45）。
