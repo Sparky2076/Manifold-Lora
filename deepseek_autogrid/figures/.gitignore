@@ -1,4 +1,0 @@
-# Figures are large; explicitly allow the Alpaca full-Alpaca convergence plot.
-*
-!.gitignore
-!alpaca_train_full_best_lora_mlora_val_ppl.png
